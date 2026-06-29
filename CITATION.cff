@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated paper."
+title: "afm-img-quantification: color-bar-guided reconstruction of AFM data from published figures"
+authors:
+  - family-names: Ryu
+    given-names: Seunghwan
+    affiliation: "KAIST"
+  - family-names: Chen
+    given-names: Dongyan
+    affiliation: "KAIST"
+  - family-names: Madika
+    given-names: Benediktus
+    affiliation: "KAIST"
+  - family-names: Hong
+    given-names: Seungbum
+    affiliation: "KAIST"
+    orcid: ""
+license: MIT
+repository-code: "https://github.com/MIIMSEKAIST/afm-img-quantification"
+version: "0.1.0"
+date-released: "2026-01-01"
+preferred-citation:
+  type: article
+  title: "Quantitative Reconstruction of Atomic Force Microscopy Data from Published Figures: A Validated Machine Learning Pipeline"
+  authors:
+    - family-names: Ryu
+      given-names: Seunghwan
+    - family-names: Chen
+      given-names: Dongyan
+    - family-names: Madika
+      given-names: Benediktus
+    - family-names: Hong
+      given-names: Seungbum
+  journal: "Digital Discovery"
+  year: 2026
+  doi: ""

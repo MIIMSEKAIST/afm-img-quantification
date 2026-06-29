@@ -1,0 +1,6 @@
+# Normalize line endings; keep Python/text as LF
+* text=auto eol=lf
+*.png binary
+*.pt binary
+*.ibw binary
+*.xlsx binary

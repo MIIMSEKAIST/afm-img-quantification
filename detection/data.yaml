@@ -1,0 +1,6 @@
+train: D:\AFM_Database_SH\datasets\afm_detection\train\images
+val: D:\AFM_Database_SH\datasets\afm_detection\valid\images
+test: D:\AFM_Database_SH\datasets\afm_detection\test\images
+
+nc: 2
+names: ['afm_map', 'colorbar']

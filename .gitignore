@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# IDE / OS
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Large data / weights — distributed via Zenodo (data) and GitHub Releases (weights)
+data/esm_ibw/*.ibw
+detection/weights/*.pt
+
+# Generated reconstructions / run artifacts (regenerable)
+runs/
+*.npz
+
+# Keep the placeholder READMEs and the precomputed result CSVs in results/
+!results/*.csv
+
+# Generated figure parts (regenerable)
+figures/parts/
+out/
