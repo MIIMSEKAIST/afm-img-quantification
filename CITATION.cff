@@ -20,7 +20,7 @@ version: "1.0.0"
 date-released: "2026-06-30"
 preferred-citation:
   type: article
-  title: "Quantitative Reconstruction of Atomic Force Microscopy Data from Published Figures: A Validated Machine Learning Pipeline"
+  title: "Machine Learning-Based Automated Construction of an AFM Database"
   authors:
     - family-names: Ryu
       given-names: Seunghwan

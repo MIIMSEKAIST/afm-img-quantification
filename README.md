@@ -3,8 +3,7 @@
 Color-bar-guided reconstruction of quantitative Atomic Force Microscopy (AFM)
 data from published figures — the code and data accompanying:
 
-> **Quantitative Reconstruction of Atomic Force Microscopy Data from Published
-> Figures: A Validated Machine Learning Pipeline**
+> **Machine Learning-Based Automated Construction of an AFM Database**
 > S. Ryu, D. Chen, B. Madika, S. Hong (KAIST). Manuscript under review (2026).
 
 A large amount of quantitative AFM data is locked inside published figures as
