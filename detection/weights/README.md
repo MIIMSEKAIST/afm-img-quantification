@@ -12,10 +12,12 @@ Base pretrained backbone: Ultralytics `yolo11m.pt` (downloaded automatically by
 
 ## Download
 
-Place `afm_detect_best.pt` in this directory before running `detection/detect.py`:
+Download `best.pt` from the GitHub Release and save it in this directory as
+`afm_detect_best.pt` (the filename `detection/detect.py` expects):
 
 ```
 detection/weights/afm_detect_best.pt
 ```
 
-- **Release URL:** _TBD — to be attached before submission_
+- **Release:** https://github.com/MIIMSEKAIST/afm-img-quantification/releases/tag/v1.0.0
+- **Direct download:** https://github.com/MIIMSEKAIST/afm-img-quantification/releases/download/v1.0.0/best.pt
