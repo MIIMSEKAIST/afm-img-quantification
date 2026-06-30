@@ -33,7 +33,7 @@ def search_crossref(query: str, max_results: int = 50000, rows_per_page: int = 2
             "select": "DOI,title,container-title,published-print,published-online,author,link,type",
             "sort": "relevance",
             "order": "desc",
-            "mailto": "victoryhwan@kaist.ac.kr",
+            "mailto": "your-email@example.com",  # set to your contact email (Crossref polite pool)
             "filter": f"from-pub-date:{year_min}-01-01,type:journal-article",
         }
 

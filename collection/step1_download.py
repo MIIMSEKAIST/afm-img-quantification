@@ -20,7 +20,7 @@ def load_config():
         return yaml.safe_load(f)
 
 
-def get_pdf_url_unpaywall(doi: str, email: str = "victoryhwan@kaist.ac.kr"):
+def get_pdf_url_unpaywall(doi: str, email: str = "your-email@example.com"):
     url = f"https://api.unpaywall.org/v2/{doi}?email={email}"
     try:
         resp = requests.get(url, timeout=15)

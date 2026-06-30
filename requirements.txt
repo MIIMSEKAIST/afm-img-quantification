@@ -1,4 +1,4 @@
-# Core quantification engine + benchmark reproduction
+# Core: quantification engine, benchmark reproduction, analysis, figures
 numpy>=1.23
 scipy>=1.9
 scikit-learn>=1.1
@@ -8,10 +8,12 @@ pillow>=9.0
 pandas>=1.5
 colorspacious>=1.1.2
 igor2>=0.5            # read Igor Binary Wave (.ibw) ESM scans
-opencv-python>=4.6
+openpyxl>=3.0        # write Supplementary Table S1 (.xlsx) in make_supplementary.py
 
 # --- Detection (optional; YOLO two-step AFM/color-bar detection) ---
 # ultralytics>=8.1
+# opencv-python>=4.6
+# pyarrow>=10.0        # detect.py writes detections.parquet
 
 # --- Color-bar OCR (optional; reading scale labels from real figures) ---
 # paddleocr>=2.6
@@ -20,3 +22,6 @@ opencv-python>=4.6
 # --- Literature collection pipeline (optional; collection/, experimental) ---
 # requests>=2.28
 # pyyaml>=6.0
+# tqdm>=4.64
+# opencv-python>=4.6   # step3_decompose.py
+# pyarrow>=10.0        # parquet I/O

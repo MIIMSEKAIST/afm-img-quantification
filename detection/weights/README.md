@@ -7,7 +7,7 @@ are attached as **GitHub Release assets**.
 |------|-------------|
 | `afm_detect_best.pt` | final trained two-step AFM / color-bar detector (run v13) |
 
-Base pretrained backbone: Ultralytics `yolo11s.pt` (downloaded automatically by
+Base pretrained backbone: Ultralytics `yolo11m.pt` (downloaded automatically by
 `ultralytics` on first use, or available from the Ultralytics repository).
 
 ## Download

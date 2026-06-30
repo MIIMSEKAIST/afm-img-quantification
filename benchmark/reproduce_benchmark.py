@@ -31,7 +31,21 @@ from afmquant import quantify_map, render_to_published_style, evaluate  # noqa: 
 
 COLORMAPS = ["viridis", "jet", "hot", "copper"]
 JPEG_QUALITY = 85
-ESM_AMPLITUDE_CHANNEL = 2  # DART ESM amplitude channel in the IBW wave stack
+# Index of the DART ESM amplitude channel in the IBW wave stack for these
+# Cypher ES scans (the first DART amplitude channel; verified by reproduction).
+ESM_AMPLITUDE_CHANNEL = 2
+
+
+def material_of(stem: str) -> str:
+    """Material class (LMNO / LICGC / NCM811) from a scan filename stem."""
+    s = stem.upper()
+    if s.startswith("LICGC"):
+        return "LICGC"
+    if s.startswith("LMNO"):
+        return "LMNO"
+    if s.startswith("NCM"):
+        return "NCM811"
+    return stem.split("_")[0]
 
 
 def load_ground_truth(ibw_path: Path) -> np.ndarray:
@@ -104,7 +118,8 @@ def main():
                 metrics = evaluate(gt, value_map, valid_mask)
                 metrics.update(qc)
                 metrics["case_id"] = case_id
-                metrics["material"] = ibw_path.stem
+                metrics["scan"] = ibw_path.stem
+                metrics["material"] = material_of(ibw_path.stem)
                 metrics["colormap"] = cmap_name
                 results.append(metrics)
                 if args.recon_dir:
@@ -120,6 +135,8 @@ def main():
                 print(f"  FAIL {case_id}: {e}")
 
     df = pd.DataFrame(results)
+    id_cols = ["case_id", "scan", "material", "colormap"]
+    df = df[id_cols + [c for c in df.columns if c not in id_cols]]
     df.to_csv(args.out, index=False)
 
     print("\n" + "=" * 60)

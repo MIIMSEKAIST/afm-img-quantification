@@ -1,23 +1,16 @@
-"""
-make_parts.py — 논문 Figure '부품' 개별 생성 스크립트 (로컬 조립용)
-=====================================================================
-류승환 / KAIST 홍승범 랩 — AFM figure 정량화 논문 (npj Comput. Mater.)
+"""Generate individual figure "parts" (one PNG per panel) for assembly.
 
-각 Figure를 통째로 만들지 않고, Figure를 이루는 개별 이미지/그래프를
-"하나당 PNG 하나"로 따로 저장한다. 제목·패널 라벨(a/b/c)·배치는
-일러스트레이터 등에서 직접 조립하는 것을 전제로 한다.
+Renders the per-panel images and graphs that make up Figures 3, 4, 5 and S4 from
+the ground-truth IBW (via the validated `afmquant` engine), saving each panel
+separately under figures/parts/{fig3,fig4,fig5,figS4}/. Panel labels (a/b/c) and
+final layout are added in a vector editor.
 
-[규칙]
-- AFM 이미지 부품: scale bar + colorbar 포함. 제목/라벨은 미포함.
-- 그래프 부품: 축·범례 포함(읽으려면 필요). 패널 제목은 미포함.
-- 모든 부품은 여백 최소(tight, pad=0)로 저장 → 조립 시 정렬 쉬움.
+Conventions:
+  - AFM image panels include the scale bar + color bar; no titles/labels.
+  - Graph panels include axes/legends; no panel titles.
+  - All panels are saved with minimal margins (tight, pad~0) for easy alignment.
 
-[출력 폴더 구조]
-  parts/
-    fig3/  fig4/  fig5/  figS4/
-
-[실행]  python make_parts.py
-[의존]  numpy pandas matplotlib scikit-image scipy igor2 colorspacious scikit-learn pillow
+Usage:  python figures/make_figure_parts.py
 """
 
 import re

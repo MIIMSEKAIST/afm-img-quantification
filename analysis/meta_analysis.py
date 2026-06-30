@@ -9,7 +9,7 @@ for each colormap-specific reconstructed corpus it computes:
   * two-sided Mann-Whitney U test p-values.
 
 Reproduces the numbers behind Fig. 5 / Table 1. Figure rendering lives in
-figures/make_fig5.py; this module is computation only and prints a summary.
+figures/make_figure_parts.py; this module is computation only and prints a summary.
 
 Input: results/meta_scanlevel.csv with columns
     scan, material, colormap, gt_med, rec_med   (medians in metres)

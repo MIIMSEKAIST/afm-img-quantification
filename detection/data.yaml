@@ -1,6 +1,10 @@
-train: D:\AFM_Database_SH\datasets\afm_detection\train\images
-val: D:\AFM_Database_SH\datasets\afm_detection\valid\images
-test: D:\AFM_Database_SH\datasets\afm_detection\test\images
+# YOLO dataset config for the two-class AFM detector.
+# The labelled detection dataset is provided separately (not in this repo).
+# `path` is the dataset root; train/val/test are relative to it.
+path: datasets/afm_detection
+train: train/images
+val: valid/images
+test: test/images
 
 nc: 2
 names: ['afm_map', 'colorbar']

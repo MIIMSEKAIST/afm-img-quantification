@@ -14,9 +14,9 @@ For each scan the DART ESM amplitude channel serves as the ground-truth matrix.
 
 ## Download
 
-These raw scans are archived on Zenodo with a DOI (open data, required by
-*Digital Discovery*). Download the archive and place the `.ibw` files in this
-directory:
+These raw scans are archived on Zenodo with a DOI (open data, to support
+independent reproduction). Download the archive and place the `.ibw` files in
+this directory:
 
 ```
 data/esm_ibw/

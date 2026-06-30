@@ -1,7 +1,10 @@
 """Train the YOLO AFM / color-bar detector.
 
 Fine-tunes an Ultralytics YOLO model on the labelled AFM-detection dataset
-(classes: afm_map, colorbar) defined by data.yaml.
+(classes: afm_map, colorbar) defined by data.yaml. The published pipeline trains
+two such models (full-figure AFM detection, then map/color-bar separation)
+following the hyperparameters in the manuscript Methods; this is a single
+configurable entry point.
 
 Usage
 -----
@@ -20,7 +23,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--data", type=Path, default=Path("detection/data.yaml"))
     ap.add_argument("--model", default="yolo11m.pt", help="base/pretrained weights")
-    ap.add_argument("--epochs", type=int, default=150)
+    ap.add_argument("--epochs", type=int, default=100)
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--batch", type=int, default=8)
     ap.add_argument("--patience", type=int, default=30)

@@ -14,11 +14,10 @@ authors:
   - family-names: Hong
     given-names: Seungbum
     affiliation: "KAIST"
-    orcid: ""
 license: MIT
 repository-code: "https://github.com/MIIMSEKAIST/afm-img-quantification"
-version: "0.1.0"
-date-released: "2026-01-01"
+version: "1.0.0"
+date-released: "2026-06-30"
 preferred-citation:
   type: article
   title: "Quantitative Reconstruction of Atomic Force Microscopy Data from Published Figures: A Validated Machine Learning Pipeline"
@@ -31,6 +30,5 @@ preferred-citation:
       given-names: Benediktus
     - family-names: Hong
       given-names: Seungbum
-  journal: "Digital Discovery"
   year: 2026
-  doi: ""
+  notes: "Manuscript under review (2026)."

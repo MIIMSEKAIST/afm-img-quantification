@@ -39,7 +39,7 @@ IBW_DIR = Path(os.environ.get("IBW_DIR", "data/esm_ibw"))
 OUT = Path("figures/parts/supp")
 OUT.mkdir(parents=True, exist_ok=True)
 COLORMAPS = ["copper", "hot", "jet", "viridis"]
-CMAP_HEX = {"copper": "#B87333", "hot": "#FF4500", "jet": "#4169E1", "viridis": "#3CB371"}
+CMAP_HEX = {"copper": "#b87333", "hot": "#d62728", "jet": "#1f77b4", "viridis": "#2ca02c"}
 
 
 def material_of(stem: str) -> str:

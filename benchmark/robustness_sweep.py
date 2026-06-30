@@ -17,13 +17,9 @@ Usage
     python benchmark/robustness_sweep.py --ibw-dir data/esm_ibw \
         --out results/robustness_sweep.csv
 
-Source: reconstructed from the benchmark logic (the original sweep script was not
-retained); engine/render/metrics imported from `afmquant`, consistent with
-reproduce_benchmark.py. Validation against the retained results/robustness_sweep.csv:
-the JPEG-quality sweep reproduces it exactly; the resolution sweep reproduces the
-published decreasing trend (exact at native 256 px, within ~0.1-0.25 % nMAE at
-reduced resolution; the small residual reflects downsampling-filter details that
-were not recorded in the lost script).
+Downsampling uses bilinear interpolation (PIL), matching the manuscript/SI and
+the figure-generation code. Re-running this script reproduces the committed
+results/robustness_sweep.csv exactly (both the quality and resolution sweeps).
 """
 from __future__ import annotations
 
@@ -33,7 +29,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import cv2
+from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant import quantify_map, render_to_published_style, evaluate  # noqa: E402
@@ -45,11 +41,18 @@ RESOLUTIONS = [256, 192, 128, 96, 64]
 FIXED_QUALITY = 85
 
 
-# INTER_AREA (area-averaging) is the correct downsampler here: it spatially
-# averages the full-resolution JPEG artifacts, which is why per-pixel nMAE
-# decreases slightly at lower resolution (Supplementary Note 3).
-def _resize(arr, size, interp=cv2.INTER_AREA):
-    return cv2.resize(arr, (size, size), interpolation=interp)
+def _resize(arr, size):
+    """Bilinear downsample (PIL), matching the SI and the figure code.
+
+    Handles both an RGB uint8 map and a float ground-truth matrix; returns the
+    array unchanged at native resolution.
+    """
+    if size == arr.shape[0]:
+        return arr
+    if arr.dtype == np.uint8:
+        return np.array(Image.fromarray(arr).resize((size, size), Image.BILINEAR))
+    img = Image.fromarray(arr.astype(np.float32), mode="F")
+    return np.array(img.resize((size, size), Image.BILINEAR)).astype(float)
 
 
 def main():
