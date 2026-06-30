@@ -5,7 +5,7 @@ are attached as **GitHub Release assets**.
 
 | file | description |
 |------|-------------|
-| `afm_detect_best.pt` | final trained two-step AFM / color-bar detector (run v13) |
+| `afm_detect_best.pt` | Step-2 map/color-bar detector, YOLO11m (run v13). Held-out test mAP@50 0.98 (mAP@50–95 0.91); see `../README.md`. |
 
 Base pretrained backbone: Ultralytics `yolo11m.pt` (downloaded automatically by
 `ultralytics` on first use, or available from the Ultralytics repository).
