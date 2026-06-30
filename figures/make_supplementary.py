@@ -33,6 +33,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant import quantify_map, render_to_published_style, evaluate  # noqa: E402
+from benchmark.reproduce_benchmark import list_benchmark_ibw  # noqa: E402
 
 IBW_DIR = Path(os.environ.get("IBW_DIR", "data/esm_ibw"))
 OUT = Path("figures/parts/supp")
@@ -66,9 +67,9 @@ def build_metrics(ibw_files):
 
 
 def main():
-    ibw_files = sorted(IBW_DIR.glob("*.ibw"))
+    ibw_files = list_benchmark_ibw(IBW_DIR)
     if not ibw_files:
-        raise SystemExit(f"No .ibw under {IBW_DIR.resolve()} (set IBW_DIR).")
+        raise SystemExit(f"No benchmark .ibw under {IBW_DIR.resolve()} (set IBW_DIR).")
 
     df = build_metrics(ibw_files)
 

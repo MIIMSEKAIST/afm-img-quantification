@@ -44,6 +44,33 @@ def load_ground_truth(ibw_path: Path) -> np.ndarray:
     return gt
 
 
+def list_benchmark_ibw(ibw_dir):
+    """Return the benchmark IBW files in `ibw_dir`.
+
+    If the manifest data/benchmark_scans.txt is found, restrict to exactly the
+    26 listed scans (so extra .ibw files in the directory — e.g. the auxiliary
+    single-scan files in the Zenodo deposit — never change the 104-case count).
+    Falls back to globbing all *.ibw if no manifest is present.
+    """
+    ibw_dir = Path(ibw_dir)
+    all_ibw = sorted(ibw_dir.glob("*.ibw"))
+    repo_root = Path(__file__).resolve().parents[1]
+    for manifest in (repo_root / "data" / "benchmark_scans.txt",
+                     ibw_dir / "benchmark_scans.txt",
+                     ibw_dir.parent / "benchmark_scans.txt"):
+        if manifest.exists():
+            names = [ln.strip() for ln in manifest.read_text(encoding="utf-8").splitlines()
+                     if ln.strip() and not ln.lstrip().startswith("#")]
+            by_name = {p.name: p for p in all_ibw}
+            selected = [by_name[n] for n in names if n in by_name]
+            missing = [n for n in names if n not in by_name]
+            if missing:
+                print(f"[manifest] {len(missing)} listed scan(s) not found in "
+                      f"{ibw_dir}: {missing[:3]}{'...' if len(missing) > 3 else ''}")
+            return selected
+    return all_ibw
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ibw-dir", type=Path, default=Path("data/esm_ibw"))
@@ -57,8 +84,8 @@ def main():
         args.recon_dir.mkdir(parents=True, exist_ok=True)
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
-    ibw_files = sorted(args.ibw_dir.glob("*.ibw"))
-    print(f"Found {len(ibw_files)} IBW files in {args.ibw_dir}")
+    ibw_files = list_benchmark_ibw(args.ibw_dir)
+    print(f"Using {len(ibw_files)} benchmark IBW files from {args.ibw_dir}")
 
     results = []
     for ibw_path in ibw_files:

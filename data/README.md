@@ -22,10 +22,23 @@ directory:
 data/esm_ibw/
     LICGC_01_4um.ibw
     ...
-    NCM811_xx.ibw
+    NCM811_pristine_07_4um.ibw
 ```
 
-- **Zenodo DOI:** _TBD — to be minted before submission_
+- **Zenodo DOI:** https://doi.org/10.5281/zenodo.21055266 (CC-BY)
+
+## Which files define the benchmark
+
+The 104-case benchmark uses **exactly the 26 scans listed in
+`benchmark_scans.txt`** (10 LICGC + 9 LMNO_pristine + 7 NCM811_pristine). All
+analysis scripts read that manifest and use only those files, so the reported
+counts (26 scans → 104 cases) are reproduced even if extra `.ibw` files are
+present in this directory.
+
+The Zenodo deposit additionally contains **3 auxiliary single-scan files**
+(`LICGC.ibw`, `LMNO_pristine.ibw`, `NCM811_pristine.ibw`) that are *not* part of
+the benchmark; they are provided only as standalone examples and are ignored by
+the scripts.
 
 ## Not included (copyright)
 

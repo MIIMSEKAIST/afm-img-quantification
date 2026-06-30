@@ -1,0 +1,30 @@
+# Benchmark scan manifest — the 26 ground-truth ESM scans that define the
+# 104-case validation benchmark (26 scans x 4 colormaps). Analysis scripts use
+# ONLY these files, so adding extra .ibw files to the data directory does not
+# change the reported case count. One filename per line; '#' lines are comments.
+LICGC_01_4um.ibw
+LICGC_02_4um.ibw
+LICGC_03_4um.ibw
+LICGC_04_4um.ibw
+LICGC_05_4um.ibw
+LICGC_06_4um.ibw
+LICGC_07_4um.ibw
+LICGC_08_4um.ibw
+LICGC_09_4um.ibw
+LICGC_10_4um.ibw
+LMNO_pristine_01_4um.ibw
+LMNO_pristine_02_4um.ibw
+LMNO_pristine_03_4um.ibw
+LMNO_pristine_04_1um.ibw
+LMNO_pristine_05_1um.ibw
+LMNO_pristine_06_1um.ibw
+LMNO_pristine_07_1um.ibw
+LMNO_pristine_08_4um.ibw
+LMNO_pristine_09_1um.ibw
+NCM811_pristine_01_2um.ibw
+NCM811_pristine_02_1um.ibw
+NCM811_pristine_03_4um.ibw
+NCM811_pristine_04_2um.ibw
+NCM811_pristine_05_4um.ibw
+NCM811_pristine_06_2um.ibw
+NCM811_pristine_07_4um.ibw

@@ -37,7 +37,7 @@ import cv2
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant import quantify_map, render_to_published_style, evaluate  # noqa: E402
-from reproduce_benchmark import load_ground_truth  # noqa: E402
+from reproduce_benchmark import load_ground_truth, list_benchmark_ibw  # noqa: E402
 
 COLORMAPS = ["copper", "hot", "jet", "viridis"]
 QUALITIES = [95, 85, 75, 65, 50]
@@ -59,8 +59,8 @@ def main():
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
-    ibw_files = sorted(args.ibw_dir.glob("*.ibw"))
-    print(f"Found {len(ibw_files)} IBW files; "
+    ibw_files = list_benchmark_ibw(args.ibw_dir)
+    print(f"Using {len(ibw_files)} benchmark IBW files; "
           f"{len(ibw_files) * len(COLORMAPS) * (len(QUALITIES) + len(RESOLUTIONS))} cases")
 
     rows = []

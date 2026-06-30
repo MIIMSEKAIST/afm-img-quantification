@@ -56,6 +56,7 @@ plt.rcParams.update({"font.size":9})
 
 # ---- engine (thin wrappers over the validated afmquant package) ----
 from afmquant import quantify_map as _qm, render_to_published_style as _render
+from benchmark.reproduce_benchmark import list_benchmark_ibw
 def quantify_map(map_rgb, strip_rgb, vmin, vmax, distance_threshold=20.0):
     vm, valid, _ = _qm(map_rgb, strip_rgb, vmin, vmax, distance_threshold)
     return vm, valid
@@ -70,10 +71,10 @@ def scan_size_um(stem):
     m = re.search(r"_(\d+)um", stem); return int(m.group(1)) if m else 4
 def load_scans():
     out=[]
-    for p in sorted(IBW_DIR.glob("**/*.ibw")):
+    for p in list_benchmark_ibw(IBW_DIR):
         gt = bw.load(str(p))["wave"]["wData"][:,:,2].astype(float)
         out.append((p.stem, material_of(p.stem), np.nan_to_num(gt, nan=np.nanmedian(gt))))
-    if not out: raise FileNotFoundError(f"No .ibw under {IBW_DIR.resolve()}")
+    if not out: raise FileNotFoundError(f"No benchmark .ibw under {IBW_DIR.resolve()}")
     return out
 def metrics(gt, rec, valid):
     rng = gt.max()-gt.min()+1e-12
