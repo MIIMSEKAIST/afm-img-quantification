@@ -59,8 +59,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ibw-dir", type=Path, default=Path("data/esm_ibw"))
     ap.add_argument("--out", type=Path, default=Path("results/robustness_sweep.csv"))
+    ap.add_argument("--color-space", default="cielab", choices=["cielab", "rgb"],
+                    help="matching space of the engine (default: manuscript setting)")
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
+    engine_kw = dict(color_space=args.color_space,
+                     distance_threshold=20.0 if args.color_space == "cielab" else None)
 
     ibw_files = list_benchmark_ibw(args.ibw_dir)
     print(f"Using {len(ibw_files)} benchmark IBW files; "
@@ -78,7 +82,7 @@ def main():
             # --- JPEG quality sweep (native resolution) ---
             for q in QUALITIES:
                 map_rgb, strip, vmin, vmax = render_to_published_style(gt, cmap_name, q)
-                recon, valid, _ = quantify_map(map_rgb, strip, vmin, vmax)
+                recon, valid, _ = quantify_map(map_rgb, strip, vmin, vmax, **engine_kw)
                 m = evaluate(gt, recon, valid)
                 rows.append({"sweep": "quality", "colormap": cmap_name, "param": q,
                              "nMAE": m["nMAE_pct"], "SSIM": m["SSIM"]})
@@ -88,7 +92,7 @@ def main():
             for res in RESOLUTIONS:
                 map_ds = _resize(map_rgb, res)
                 gt_ds = _resize(gt.astype(np.float32), res)
-                recon, valid, _ = quantify_map(map_ds, strip, vmin, vmax)
+                recon, valid, _ = quantify_map(map_ds, strip, vmin, vmax, **engine_kw)
                 m = evaluate(gt_ds, recon, valid)
                 rows.append({"sweep": "resolution", "colormap": cmap_name, "param": res,
                              "nMAE": m["nMAE_pct"], "SSIM": m["SSIM"]})

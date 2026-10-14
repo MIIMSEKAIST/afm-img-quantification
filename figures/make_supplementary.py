@@ -33,6 +33,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant import quantify_map, render_to_published_style, evaluate  # noqa: E402
+from afmquant.render import get_cmap  # noqa: E402
 from benchmark.reproduce_benchmark import list_benchmark_ibw  # noqa: E402
 
 IBW_DIR = Path(os.environ.get("IBW_DIR", "data/esm_ibw"))
@@ -106,7 +107,7 @@ def main():
     norm = (gt - gt.min()) / (gt.max() - gt.min() + 1e-12)
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     for j, cmap_name in enumerate(COLORMAPS):
-        rgb = (cm.get_cmap(cmap_name)(norm)[:, :, :3] * 255).astype(np.uint8)
+        rgb = (get_cmap(cmap_name)(norm)[:, :, :3] * 255).astype(np.uint8)
         buf = io.BytesIO(); Image.fromarray(rgb).save(buf, format="JPEG", quality=85); buf.seek(0)
         axes[0, j].imshow(np.array(Image.open(buf)))
         axes[0, j].set_title(f"Rendered + JPEG ({cmap_name})", fontsize=10); axes[0, j].axis("off")

@@ -139,6 +139,12 @@ def parts_fig3(scans):
     ax.bar(COLORMAPS, means.values, yerr=stds.values, capsize=4,
            color=[CMAP_HEX[c] for c in COLORMAPS], alpha=0.85, edgecolor="k", lw=0.5)
     ax.set_ylabel("nMAE (%)"); savefig(fig, d/"a_nMAE_by_colormap.png")
+    # (a2) colormap별 SSIM 막대 — 부품 (Referee 1 minor comment 2)
+    fig, ax = plt.subplots(figsize=(3.6, 3.0))
+    g = df.groupby("colormap").SSIM; means, stds = g.mean().reindex(COLORMAPS), g.std().reindex(COLORMAPS)
+    ax.bar(COLORMAPS, means.values, yerr=stds.values, capsize=4,
+           color=[CMAP_HEX[c] for c in COLORMAPS], alpha=0.85, edgecolor="k", lw=0.5)
+    ax.set_ylabel("SSIM"); ax.set_ylim(0, 1.0); savefig(fig, d/"a2_SSIM_by_colormap.png")
     # (b) SSIM 히스토 — 부품
     fig, ax = plt.subplots(figsize=(3.6, 3.0))
     ax.hist(df.SSIM, bins=30, color="#4472C4", edgecolor="k", lw=0.4)

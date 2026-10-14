@@ -1,0 +1,388 @@
+{
+  "benchmark": {
+    "n_cases": 104,
+    "n_scans": 26,
+    "nMAE_mean": 2.092,
+    "nMAE_std": 0.76,
+    "nMAE_min": 0.92,
+    "nMAE_max": 4.824,
+    "SSIM_mean": 0.807,
+    "SSIM_std": 0.105,
+    "SSIM_min": 0.482,
+    "mean_error_mean": 0.331,
+    "std_error_abs_mean": 12.834,
+    "std_error_abs_max": 42.255,
+    "EMD_mean": 0.956,
+    "valid_ratio_mean": 0.9951,
+    "valid_ratio_min": 0.9323,
+    "by_colormap": {
+      "copper": {
+        "nMAE": 1.742,
+        "SSIM": 0.882
+      },
+      "hot": {
+        "nMAE": 1.834,
+        "SSIM": 0.87
+      },
+      "jet": {
+        "nMAE": 2.126,
+        "SSIM": 0.778
+      },
+      "viridis": {
+        "nMAE": 2.666,
+        "SSIM": 0.699
+      }
+    },
+    "by_material": {
+      "LICGC": {
+        "nMAE": 2.353,
+        "SSIM": 0.789
+      },
+      "LMNO": {
+        "nMAE": 1.99,
+        "SSIM": 0.804
+      },
+      "NCM811": {
+        "nMAE": 1.849,
+        "SSIM": 0.838
+      }
+    }
+  },
+  "benchmark_extended": {
+    "nMAE_IQR_mean": 27.572,
+    "nMAE_IQR_median": 26.546,
+    "nMAE_IQR_max": 69.044,
+    "nMAE_SD_mean": 26.13,
+    "nMAE_SD_median": 25.153,
+    "std_error_signed_mean": -12.441,
+    "std_error_negative_fraction": 0.923,
+    "mean_error_signed_mean": -0.283,
+    "nMAE_allpix_mean": 2.142,
+    "IQR_over_range_median": 0.08,
+    "levels_in_IQR_median": 20.5,
+    "levels_in_IQR_min": 7.8,
+    "by_colormap_nMAE_IQR": {
+      "copper": 23.236,
+      "hot": 23.889,
+      "jet": 27.882,
+      "viridis": 35.279
+    }
+  },
+  "scan_level": {
+    "median_dev_abs_mean": 0.46,
+    "median_dev_abs_std": 0.39,
+    "median_dev_abs_max": 2.46,
+    "median_dev_by_material": {
+      "LMNO": 0.44,
+      "LICGC": 0.44,
+      "NCM811": 0.5
+    },
+    "table1_gt_median_pm": {
+      "LMNO": 436.0,
+      "LICGC": 332.0,
+      "NCM811": 113.0
+    },
+    "table1_rec_median_pm_mean_over_cmaps": {
+      "LMNO": 435.0,
+      "LICGC": 331.0,
+      "NCM811": 112.0
+    },
+    "heterogeneity_r": 0.985,
+    "heterogeneity_dev_abs_mean": 16.3,
+    "heterogeneity_dev_signed_mean": -15.3,
+    "qc_flags": {
+      "LMNO": 0,
+      "LICGC": 0,
+      "NCM811": 6
+    },
+    "corpora": {
+      "ground_truth": {
+        "ranking": "LMNO > LICGC > NCM811",
+        "cliffs_delta": {
+          "LMNO-LICGC": 0.556,
+          "LMNO-NCM811": 1.0,
+          "LICGC-NCM811": 0.771
+        },
+        "mannwhitney_p": {
+          "LMNO-LICGC": 0.0455,
+          "LMNO-NCM811": 0.0002,
+          "LICGC-NCM811": 0.0068
+        }
+      },
+      "copper": {
+        "ranking": "LMNO > LICGC > NCM811",
+        "cliffs_delta": {
+          "LMNO-LICGC": 0.556,
+          "LMNO-NCM811": 1.0,
+          "LICGC-NCM811": 0.771
+        },
+        "mannwhitney_p": {
+          "LMNO-LICGC": 0.0455,
+          "LMNO-NCM811": 0.0002,
+          "LICGC-NCM811": 0.0068
+        }
+      },
+      "hot": {
+        "ranking": "LMNO > LICGC > NCM811",
+        "cliffs_delta": {
+          "LMNO-LICGC": 0.556,
+          "LMNO-NCM811": 1.0,
+          "LICGC-NCM811": 0.771
+        },
+        "mannwhitney_p": {
+          "LMNO-LICGC": 0.0455,
+          "LMNO-NCM811": 0.0002,
+          "LICGC-NCM811": 0.0068
+        }
+      },
+      "jet": {
+        "ranking": "LMNO > LICGC > NCM811",
+        "cliffs_delta": {
+          "LMNO-LICGC": 0.556,
+          "LMNO-NCM811": 1.0,
+          "LICGC-NCM811": 0.771
+        },
+        "mannwhitney_p": {
+          "LMNO-LICGC": 0.0455,
+          "LMNO-NCM811": 0.0002,
+          "LICGC-NCM811": 0.0068
+        }
+      },
+      "viridis": {
+        "ranking": "LMNO > LICGC > NCM811",
+        "cliffs_delta": {
+          "LMNO-LICGC": 0.578,
+          "LMNO-NCM811": 1.0,
+          "LICGC-NCM811": 0.771
+        },
+        "mannwhitney_p": {
+          "LMNO-LICGC": 0.0373,
+          "LMNO-NCM811": 0.0002,
+          "LICGC-NCM811": 0.0068
+        }
+      }
+    },
+    "ranking_preserved_all_corpora": true
+  },
+  "diffusivity": {
+    "median_dev_abs_mean": 0.9,
+    "median_dev_abs_std": 0.77,
+    "median_dev_abs_max": 4.56,
+    "r_logD_mean": 0.91,
+    "r_logD_std": 0.08
+  },
+  "robustness": {
+    "n_cases": 1040,
+    "quality_mean_nMAE": {
+      "50": {
+        "copper": 2.487,
+        "hot": 2.393,
+        "jet": 2.642,
+        "viridis": 3.146
+      },
+      "65": {
+        "copper": 2.183,
+        "hot": 2.271,
+        "jet": 2.473,
+        "viridis": 3.031
+      },
+      "75": {
+        "copper": 2.042,
+        "hot": 2.085,
+        "jet": 2.321,
+        "viridis": 2.9
+      },
+      "85": {
+        "copper": 1.742,
+        "hot": 1.834,
+        "jet": 2.126,
+        "viridis": 2.666
+      },
+      "95": {
+        "copper": 1.301,
+        "hot": 1.536,
+        "jet": 1.997,
+        "viridis": 2.232
+      }
+    },
+    "resolution_mean_nMAE": {
+      "64": {
+        "copper": 0.985,
+        "hot": 1.749,
+        "jet": 1.209,
+        "viridis": 1.243
+      },
+      "96": {
+        "copper": 1.117,
+        "hot": 1.598,
+        "jet": 1.228,
+        "viridis": 1.633
+      },
+      "128": {
+        "copper": 1.18,
+        "hot": 1.571,
+        "jet": 1.288,
+        "viridis": 1.845
+      },
+      "192": {
+        "copper": 1.335,
+        "hot": 1.629,
+        "jet": 1.648,
+        "viridis": 2.211
+      },
+      "256": {
+        "copper": 1.742,
+        "hot": 1.834,
+        "jet": 2.126,
+        "viridis": 2.666
+      }
+    },
+    "group_mean_nMAE_min": 0.98,
+    "group_mean_nMAE_max": 3.15,
+    "quality_group_mean_range": [
+      1.3,
+      3.15
+    ],
+    "worst_single_case_nMAE": 5.61,
+    "colormap_order_copper<hot<jet<viridis_by_quality": {
+      "50": false,
+      "65": true,
+      "75": true,
+      "85": true,
+      "95": true
+    }
+  },
+  "subsampling": {
+    "nMAE_pct": {
+      "png": {
+        "copper": 0.173,
+        "hot": 0.172,
+        "jet": 0.174,
+        "viridis": 0.173
+      },
+      "jpeg_444": {
+        "copper": 1.536,
+        "hot": 1.246,
+        "jet": 0.996,
+        "viridis": 1.96
+      },
+      "jpeg_420": {
+        "copper": 1.742,
+        "hot": 1.834,
+        "jet": 2.126,
+        "viridis": 2.666
+      }
+    },
+    "SSIM": {
+      "png": {
+        "copper": 1.0,
+        "hot": 1.0,
+        "jet": 1.0,
+        "viridis": 1.0
+      },
+      "jpeg_444": {
+        "copper": 0.906,
+        "hot": 0.933,
+        "jet": 0.956,
+        "viridis": 0.852
+      },
+      "jpeg_420": {
+        "copper": 0.882,
+        "hot": 0.87,
+        "jet": 0.778,
+        "viridis": 0.699
+      }
+    }
+  },
+  "baseline": {
+    "cielab_interp[all]": {
+      "nMAE": 2.136,
+      "nMAE_IQR": 28.241,
+      "SSIM": 0.808
+    },
+    "cielab_nn[all]": {
+      "nMAE": 2.142,
+      "nMAE_IQR": 28.322,
+      "SSIM": 0.807
+    },
+    "cielab_nn[valid]": {
+      "nMAE": 2.092,
+      "nMAE_IQR": 27.572,
+      "SSIM": 0.807
+    },
+    "cielab_oracle[all]": {
+      "nMAE": 2.178,
+      "nMAE_IQR": 28.765,
+      "SSIM": 0.801
+    },
+    "rgb_nn[all]": {
+      "nMAE": 1.779,
+      "nMAE_IQR": 23.627,
+      "SSIM": 0.862
+    }
+  },
+  "baseline_by_colormap_nMAE_allpix": {
+    "cielab_interp": {
+      "copper": 1.739,
+      "hot": 1.847,
+      "jet": 2.287,
+      "viridis": 2.671
+    },
+    "cielab_nn": {
+      "copper": 1.744,
+      "hot": 1.851,
+      "jet": 2.293,
+      "viridis": 2.68
+    },
+    "cielab_oracle": {
+      "copper": 1.739,
+      "hot": 1.905,
+      "jet": 2.325,
+      "viridis": 2.744
+    },
+    "rgb_nn": {
+      "copper": 1.39,
+      "hot": 1.439,
+      "jet": 2.071,
+      "viridis": 2.215
+    }
+  },
+  "colormap_properties": {
+    "copper": {
+      "path_dE": 150.779,
+      "path_dL": 83.762,
+      "path_dab": 113.127,
+      "luminance_share": 0.556,
+      "min_step_dE": 0.0,
+      "mean_chroma": 32.641,
+      "L_monotonic": true
+    },
+    "hot": {
+      "path_dE": 328.872,
+      "path_dL": 99.415,
+      "path_dab": 306.34,
+      "luminance_share": 0.302,
+      "min_step_dE": 0.145,
+      "mean_chroma": 71.167,
+      "L_monotonic": true
+    },
+    "jet": {
+      "path_dE": 519.57,
+      "path_dL": 154.62,
+      "path_dab": 489.476,
+      "luminance_share": 0.298,
+      "min_step_dE": 0.0,
+      "mean_chroma": 87.007,
+      "L_monotonic": false
+    },
+    "viridis": {
+      "path_dE": 230.143,
+      "path_dL": 75.988,
+      "path_dab": 213.985,
+      "luminance_share": 0.33,
+      "min_step_dE": 0.0,
+      "mean_chroma": 51.18,
+      "L_monotonic": false
+    }
+  }
+}
