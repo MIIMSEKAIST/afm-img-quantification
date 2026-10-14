@@ -65,7 +65,7 @@ def _project_onto_polyline(pix, strip, values, idx):
 
 
 def quantify_map(map_rgb, colorbar_strip_rgb, vmin, vmax, distance_threshold=20.0,
-                 color_space="cielab", interpolate=False):
+                 color_space="cielab", interpolate=False, mask_space="cielab"):
     """Reconstruct numerical values from a color-rendered map.
 
     Parameters
@@ -90,6 +90,11 @@ def quantify_map(map_rgb, colorbar_strip_rgb, vmin, vmax, distance_threshold=20.
         If True, project each pixel onto the strip polyline between neighbouring
         samples and interpolate the value (continuous output instead of the
         256-level nearest-sample lookup).
+    mask_space : {"cielab", "match"}, default "cielab"
+        Space in which the validity distance is measured. "cielab" always uses
+        the CIELAB Delta-E between the pixel and its matched calibration colour
+        (so the threshold keeps its perceptual meaning even when matching is
+        done in sRGB); "match" uses the matching distance itself.
 
     Returns
     -------
@@ -117,6 +122,12 @@ def quantify_map(map_rgb, colorbar_strip_rgb, vmin, vmax, distance_threshold=20.
         vals = values[idx]
 
     value_map = vals.reshape(H, W)
+
+    if mask_space == "cielab" and color_space != "cielab":
+        # perceptual mismatch between each pixel and the colour it was matched to
+        pix_lab = _to_space(map_rgb.reshape(-1, 3), "cielab")
+        strip_lab = _to_space(colorbar_strip_rgb, "cielab")
+        dist = np.linalg.norm(pix_lab - strip_lab[idx], axis=1)
     dist_map = dist.reshape(H, W)
 
     if distance_threshold is None:
@@ -129,5 +140,6 @@ def quantify_map(map_rgb, colorbar_strip_rgb, vmin, vmax, distance_threshold=20.
         "mean_cielab_distance": float(dist_map[valid_mask].mean()) if valid_mask.any() else None,
         "color_space": color_space,
         "interpolate": bool(interpolate),
+        "mask_space": mask_space,
     }
     return value_map, valid_mask, qc

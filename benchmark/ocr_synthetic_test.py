@@ -2,9 +2,9 @@
 
 Generates matplotlib colour bars with known scale (random colormap, orientation,
 value range and magnitude, number of ticks, font size, unit label, offset
-exponent, DPI, JPEG quality), runs the released colour-bar pipeline
+exponent, DPI, JPEG quality), runs the released colour-bar reader
 
-    find_gradient_region -> sample_strip -> OCR -> anchors -> fit_scale
+    afmquant.ocr.read_colorbar  (gradient region -> strip -> OCR -> scale fit)
 
 and scores the recovered endpoints against the truth. A case is a *success*
 when both endpoints are within ``tol`` (default 2 %) of the true span and the
@@ -29,8 +29,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from afmquant.colorbar import extract_strip  # noqa: E402
-from afmquant.ocr import ColorbarOCR, read_scale  # noqa: E402
+from afmquant.ocr import ColorbarOCR, read_colorbar  # noqa: E402
 
 CMAPS = ["copper", "hot", "jet", "viridis", "gray", "plasma", "inferno", "RdBu", "coolwarm", "YlGnBu"]
 UNITS = [None, "nm", "pm", "mV", "pA", "deg", "N/m", "a.u.", "µm"]
@@ -103,26 +102,22 @@ def main():
     rows = []
     for seed in range(args.n):
         img, meta = make_case(seed)
-        rec = {**meta, "strip_ok": False, "orient_ok": False, "fit_ok": False, "success": False,
-               "reason": None, "n_anchors": 0, "err_lo_rel": np.nan, "err_hi_rel": np.nan}
-        ex = extract_strip(img)
-        rec["strip_ok"] = bool(ex["ok"])
-        if not ex["ok"]:
-            rec["reason"] = ex.get("reason")
-        else:
-            rec["orient_ok"] = (ex["orientation"] == "vertical") == meta["vertical"]
-            fit = read_scale(img, ex["bbox"], ex["orientation"], ocr)
-            rec["n_anchors"] = fit.get("n_anchors", 0)
-            rec["fit_ok"] = bool(fit.get("ok"))
-            rec["reason"] = fit.get("reason")
-            rec["unit_read"] = fit.get("unit")
-            rec["ocr_texts"] = "|".join(t for t, _ in fit.get("ocr_items", []))
-            if fit.get("ok"):
-                span = meta["vmax"] - meta["vmin"]
-                rec["err_lo_rel"] = abs(fit["vmin"] - meta["vmin"]) / span
-                rec["err_hi_rel"] = abs(fit["vmax"] - meta["vmax"]) / span
-                rec["success"] = bool(rec["orient_ok"] and rec["err_lo_rel"] <= args.tol
-                                      and rec["err_hi_rel"] <= args.tol)
+        res = read_colorbar(img, ocr)
+        rec = {**meta, "ok": bool(res["ok"]), "reason": res.get("reason"),
+               "orient_ok": (res.get("orientation") == "vertical") == meta["vertical"]
+               if res.get("orientation") else False,
+               "n_anchors": res.get("n_anchors", 0), "unit_read": res.get("unit"),
+               "ocr_texts": "|".join(t for t, _ in res.get("ocr_items", [])),
+               "err_lo_rel": np.nan, "err_hi_rel": np.nan, "success": False}
+        if res["ok"]:
+            span = meta["vmax"] - meta["vmin"]
+            rec["err_lo_rel"] = abs(res["vmin"] - meta["vmin"]) / span
+            rec["err_hi_rel"] = abs(res["vmax"] - meta["vmax"]) / span
+            rec["success"] = bool(rec["orient_ok"] and rec["err_lo_rel"] <= args.tol
+                                  and rec["err_hi_rel"] <= args.tol)
+            rec["success_5pct"] = bool(rec["orient_ok"] and rec["err_lo_rel"] <= 0.05
+                                       and rec["err_hi_rel"] <= 0.05)
+            rec["unit_ok"] = (meta["unit"] is None) or (res.get("unit") == meta["unit"])
         rows.append(rec)
         if args.dump_fail and not rec["success"]:
             Image.fromarray(img).save(args.dump_fail / f"case{seed:04d}_{meta['cmap']}.png")
@@ -134,17 +129,20 @@ def main():
     print("\n" + "=" * 60)
     print(f"OCR SYNTHETIC TEST  n={len(df)}  tol={args.tol:.0%}")
     print("=" * 60)
-    print(f"strip found: {df.strip_ok.mean():.1%} | orientation ok: {df.orient_ok.mean():.1%} | "
-          f"fit ok: {df.fit_ok.mean():.1%} | SUCCESS: {df.success.mean():.1%}")
-    ok = df[df.fit_ok]
+    print(f"scale read (ok): {df.ok.mean():.1%} | orientation ok: {df.orient_ok.mean():.1%} | "
+          f"SUCCESS (both ends within tol): {df.success.mean():.1%} | within 5%: "
+          f"{df.get('success_5pct', pd.Series(False, index=df.index)).fillna(False).mean():.1%} | "
+          f"unit ok: {df.get('unit_ok', pd.Series(False, index=df.index)).fillna(False).mean():.1%}")
+    ok = df[df.ok]
     if len(ok):
-        print(f"endpoint error (fit ok): median {np.nanmedian(np.r_[ok.err_lo_rel, ok.err_hi_rel]):.2%}, "
-              f"95th {np.nanpercentile(np.r_[ok.err_lo_rel, ok.err_hi_rel], 95):.2%}")
+        errs = np.r_[ok.err_lo_rel, ok.err_hi_rel]
+        print(f"endpoint error (ok cases): median {np.nanmedian(errs):.2%}, "
+              f"95th {np.nanpercentile(errs, 95):.2%}, max {np.nanmax(errs):.2%}")
     for col in ("vertical", "exponent", "jpeg_q", "fontsize", "nticks", "cmap"):
         print(f"\nsuccess by {col}:")
         print(df.groupby(col).success.mean().round(3).to_string())
     print("\nfailure reasons:")
-    print(df[~df.success].reason.value_counts().head(10).to_string())
+    print(df[~df.success].reason.fillna("endpoint error > tol").value_counts().head(10).to_string())
     print(f"\nSaved: {args.out}")
 
 

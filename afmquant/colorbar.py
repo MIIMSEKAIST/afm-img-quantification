@@ -10,19 +10,23 @@ the other. The numeric scale is attached separately by :mod:`afmquant.ocr`.
 Method (deterministic, no learned components)
 ---------------------------------------------
 1. Background colour = median of the crop border.
-2. Foreground mask = pixels differing from the background; thin strokes (text,
-   tick marks, outline) are removed by a morphological opening, leaving the
-   solid gradient as the largest connected component.
-3. Orientation = long axis of that component.
-4. The strip is the per-position median colour over the central band of the
-   bar (middle 50 % of its width), resampled to ``n`` positions along the axis.
-5. Quality flags: gradient length, path smoothness and number of distinct
+2. Foreground = pixels differing from the background; thin strokes (text, tick
+   marks) are removed by a morphological opening. The gradient is the largest
+   remaining component plus any further components aligned with it on the same
+   axis (diverging colormaps whose white centre coincides with the page split
+   the bar in two).
+3. Orientation = long axis of the merged region.
+4. The region is extended along its axis while the bar outline (the one- to
+   three-pixel columns/rows just outside the gradient) remains non-background:
+   this recovers bar ends whose colour equals the page (white end of 'hot',
+   'gray', ...), which step 2 cannot see.
+5. The strip is the per-position median colour over the central band of the
+   bar (middle 50 % of its width), resampled to ``n`` positions.
+6. Quality flags: gradient length, path smoothness and number of distinct
    colours, used downstream to reject non-gradient regions.
 
-Known limitation: a colormap end that coincides with the background colour
-(e.g. the white end of 'hot' on a white page) is not separable from the page
-and is truncated; the value scale is still anchored by the OCR tick positions,
-so the effect is confined to the extreme values.
+The OCR stage can further widen the axis extent to the outermost tick labels
+(ticks always lie inside the bar), see :func:`afmquant.ocr.read_colorbar`.
 """
 from __future__ import annotations
 
@@ -31,27 +35,129 @@ import cv2
 from colorspacious import cspace_convert
 
 
-def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04):
+def _background_and_diff(crop_rgb, min_share=0.35):
+    """Page background = most common (coarsely quantized) colour of the crop
+    border; a mixed border (e.g. a neighbouring map inside a padded crop) falls
+    back to white, the usual page colour."""
+    border = np.concatenate([crop_rgb[0], crop_rgb[-1], crop_rgb[:, 0], crop_rgb[:, -1]]).astype(int)
+    keys = (border[:, 0] // 32) * 64 + (border[:, 1] // 32) * 8 + (border[:, 2] // 32)
+    vals, counts = np.unique(keys, return_counts=True)
+    top = vals[counts.argmax()]
+    if counts.max() / len(keys) >= min_share:
+        bg = np.median(border[keys == top], axis=0)
+    else:
+        bg = np.array([255.0, 255.0, 255.0])
+    diff = np.abs(crop_rgb.astype(int) - bg.astype(int)).max(axis=2)
+    return bg, diff
+
+
+def _overlap(a0, a1, b0, b1):
+    return max(0, min(a1, b1) - max(a0, b0))
+
+
+def _extend_along_axis(diff, bbox, orientation, thr, max_gap=2):
+    """Grow the bbox along its long axis while the outline just outside the
+    gradient band stays non-background on BOTH sides of the bar (text above or
+    below the bar, e.g. an exponent label, marks only one side)."""
+    H, W = diff.shape
+    x0, y0, x1, y1 = bbox
+    if orientation == "vertical":
+        left = list(range(max(0, x0 - 3), min(W, x0 + 1)))
+        right = list(range(max(0, x1 - 1), min(W, x1 + 3)))
+        if left and right:
+            score = np.minimum(diff[:, left].max(axis=1), diff[:, right].max(axis=1))
+        else:
+            score = np.zeros(H)
+        lo, hi = y0, y1
+        g = 0
+        for y in range(y0 - 1, -1, -1):
+            if score[y] >= thr:
+                lo, g = y, 0
+            else:
+                g += 1
+                if g > max_gap:
+                    break
+        g = 0
+        for y in range(y1, H):
+            if score[y] >= thr:
+                hi, g = y + 1, 0
+            else:
+                g += 1
+                if g > max_gap:
+                    break
+        return (x0, lo, x1, hi)
+    top = list(range(max(0, y0 - 3), min(H, y0 + 1)))
+    bottom = list(range(max(0, y1 - 1), min(H, y1 + 3)))
+    if top and bottom:
+        score = np.minimum(diff[top, :].max(axis=0), diff[bottom, :].max(axis=0))
+    else:
+        score = np.zeros(W)
+    lo, hi = x0, x1
+    g = 0
+    for x in range(x0 - 1, -1, -1):
+        if score[x] >= thr:
+            lo, g = x, 0
+        else:
+            g += 1
+            if g > max_gap:
+                break
+    g = 0
+    for x in range(x1, W):
+        if score[x] >= thr:
+            hi, g = x + 1, 0
+        else:
+            g += 1
+            if g > max_gap:
+                break
+    return (lo, y0, hi, y1)
+
+
+def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, roi_margin=0.15):
     """Return ``((x0, y0, x1, y1), orientation)`` of the gradient strip inside a
-    colour-bar crop, or ``None`` if no solid region is found."""
+    colour-bar crop, or ``None`` if no solid region is found.
+
+    ``roi`` (x0, y0, x1, y1), when given (e.g. the detector's colour-bar box in
+    crop coordinates), restricts the search for the gradient to that box
+    (plus a margin) so that a neighbouring map inside the padded crop is never
+    mistaken for the bar; the outline-based extension may still grow beyond it.
+    """
     h, w = crop_rgb.shape[:2]
     if h < 4 or w < 4:
         return None
-    border = np.concatenate([crop_rgb[0], crop_rgb[-1], crop_rgb[:, 0], crop_rgb[:, -1]])
-    bg = np.median(border, axis=0)
-    diff = np.abs(crop_rgb.astype(int) - bg.astype(int)).max(axis=2)
+    _, diff = _background_and_diff(crop_rgb)
     fg = (diff > fg_threshold).astype(np.uint8)
-
+    if roi is not None:
+        rx0, ry0, rx1, ry1 = roi
+        mx, my = roi_margin * (rx1 - rx0), roi_margin * (ry1 - ry0)
+        keep = np.zeros_like(fg)
+        keep[int(max(0, ry0 - my)):int(min(h, ry1 + my)), int(max(0, rx0 - mx)):int(min(w, rx1 + mx))] = 1
+        fg = fg * keep
     k = max(3, int(round(open_frac * min(h, w))))
     fg_open = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((k, k), np.uint8))
     n, _, stats, _ = cv2.connectedComponentsWithStats(fg_open, connectivity=8)
     if n <= 1:
         return None
-    i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
-    x, y = int(stats[i, cv2.CC_STAT_LEFT]), int(stats[i, cv2.CC_STAT_TOP])
-    bw, bh = int(stats[i, cv2.CC_STAT_WIDTH]), int(stats[i, cv2.CC_STAT_HEIGHT])
-    orientation = "vertical" if bh >= bw else "horizontal"
-    return (x, y, x + bw, y + bh), orientation
+    comps = [(int(s[cv2.CC_STAT_AREA]), int(s[cv2.CC_STAT_LEFT]), int(s[cv2.CC_STAT_TOP]),
+              int(s[cv2.CC_STAT_WIDTH]), int(s[cv2.CC_STAT_HEIGHT])) for s in stats[1:]]
+    area, x, y, bw, bh = max(comps)
+    vertical = bh >= bw
+    x0, y0, x1, y1 = x, y, x + bw, y + bh
+    # merge components aligned with the largest one on the short axis
+    for a, cx, cy, cw, ch in comps:
+        if a < 0.05 * area or (cx, cy, cw, ch) == (x, y, bw, bh):
+            continue
+        if vertical:
+            ov = _overlap(x, x + bw, cx, cx + cw) / max(1, min(bw, cw))
+            similar = 0.5 <= cw / max(1, bw) <= 2.0
+        else:
+            ov = _overlap(y, y + bh, cy, cy + ch) / max(1, min(bh, ch))
+            similar = 0.5 <= ch / max(1, bh) <= 2.0
+        if ov >= 0.6 and similar:
+            x0, y0 = min(x0, cx), min(y0, cy)
+            x1, y1 = max(x1, cx + cw), max(y1, cy + ch)
+    orientation = "vertical" if (y1 - y0) >= (x1 - x0) else "horizontal"
+    bbox = _extend_along_axis(diff, (x0, y0, x1, y1), orientation, thr=fg_threshold * 0.5)
+    return bbox, orientation
 
 
 def sample_strip(crop_rgb, bbox, orientation, n=256, band=0.5):
@@ -92,18 +198,36 @@ def strip_quality(strip_rgb):
     }
 
 
-def extract_strip(crop_rgb, n=256):
+def extract_strip(crop_rgb, n=256, axis_extent=None, roi=None):
     """Full colour-bar strip extraction from a crop.
 
-    Returns a dict with keys ``strip`` (n x 3 uint8, ordered top->bottom or
+    Parameters
+    ----------
+    crop_rgb : ndarray (H, W, 3) uint8
+    n : number of strip samples
+    axis_extent : (lo, hi) or None
+        Override of the gradient extent along the bar axis (pixel coordinates
+        in the crop), e.g. widened to the outermost tick labels by the OCR stage.
+    roi : (x0, y0, x1, y1) or None
+        Prior location of the bar inside the crop (see find_gradient_region).
+
+    Returns a dict with ``strip`` (n x 3 uint8, ordered top->bottom or
     left->right), ``bbox``, ``orientation``, ``quality`` and ``ok``; on failure
     ``ok`` is False and ``reason`` explains why.
     """
-    found = find_gradient_region(crop_rgb)
+    found = find_gradient_region(crop_rgb, roi=roi)
     if found is None:
         return {"ok": False, "reason": "no solid gradient region"}
     bbox, orientation = found
     x0, y0, x1, y1 = bbox
+    H, W = crop_rgb.shape[:2]
+    if axis_extent is not None:
+        lo, hi = int(round(axis_extent[0])), int(round(axis_extent[1]))
+        if orientation == "vertical":
+            y0, y1 = max(0, min(y0, lo)), min(H, max(y1, hi))
+        else:
+            x0, x1 = max(0, min(x0, lo)), min(W, max(x1, hi))
+        bbox = (x0, y0, x1, y1)
     long_px = (y1 - y0) if orientation == "vertical" else (x1 - x0)
     if long_px < 20:
         return {"ok": False, "reason": f"gradient region too short ({long_px} px)",
