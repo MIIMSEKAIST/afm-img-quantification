@@ -7,8 +7,11 @@ can be checked against the code output line by line.
 
 Usage
 -----
-    python reproduce_all.py --ibw-dir data/esm_ibw            # everything (~5 min)
-    python reproduce_all.py --ibw-dir data/esm_ibw --skip robustness
+    python reproduce_all.py --ibw-dir data/esm_ibw            # engine benchmarks (~5 min) + OCR test
+    python reproduce_all.py --ibw-dir data/esm_ibw --weights detection/weights/afm_detect_best.pt \
+        --data path/to/afm_detection/data.yaml                 # + detector metrics and the realistic-figure
+                                                               #   (Tier 2) benchmark (~40 min, GPU recommended)
+    python reproduce_all.py --skip tier2_render tier2_eval detection   # skip the slow / data-dependent steps
 """
 from __future__ import annotations
 
@@ -37,8 +40,17 @@ STEPS = [  # (key, command)
     ("subsampling", ["benchmark/subsampling_sweep.py", "--out", "results/subsampling_sweep.csv"]),
     ("baseline", ["benchmark/baseline_comparison.py", "--out", "results/baseline_comparison.csv"]),
     ("colormaps", ["benchmark/colormap_analysis.py", "--out", "results/colormap_properties.csv"]),
+    # --- stages added in revision R1 (colour-bar reading, detection, end-to-end) ---
+    ("ocr", ["benchmark/ocr_synthetic_test.py", "--n", "300", "--out", "results/ocr_synthetic_test.csv"]),
+    ("detection", ["detection/evaluate.py", "--out", "results/detection_eval.json"]),
+    ("tier2_render", ["benchmark/tier2_render.py", "--out", "runs/tier2"]),
+    ("tier2_eval", ["benchmark/tier2_evaluate.py", "--manifest", "runs/tier2/manifest.json",
+                    "--out", "results/tier2_results.csv"]),
 ]
-NEEDS_IBW = {"benchmark", "scanlevel", "diffusivity", "robustness", "subsampling", "baseline"}
+NEEDS_IBW = {"benchmark", "scanlevel", "diffusivity", "robustness", "subsampling", "baseline", "tier2_render"}
+NEEDS_WEIGHTS = {"detection", "tier2_eval"}      # detector weights (released with v1.1.0)
+NEEDS_DATA = {"detection"}                        # labelled detection dataset (Zenodo deposit)
+NEEDS_PDFF = {"tier2_render"}                     # pdffigures2 jar (optional; PyMuPDF fallback)
 
 
 def r(x, n=3):
@@ -154,12 +166,78 @@ def build_manifest():
                                                     "min_step_dE", "mean_chroma")}
                                     | {"L_monotonic": bool(row.L_monotonic)}
                                     for row in cp.itertuples()}
+    if (R / "ocr_synthetic_test.csv").exists():
+        o = pd.read_csv(R / "ocr_synthetic_test.csv")
+        ok = o[o.ok.astype(bool)]
+        err = pd.concat([ok.err_lo_rel, ok.err_hi_rel]) * 100
+        M["ocr_synthetic"] = {
+            "n_cases": int(len(o)), "scale_read_frac": r(o.ok.astype(bool).mean(), 4),
+            "orientation_ok_frac": r(o.orient_ok.astype(bool).mean(), 4),
+            "success_2pct_frac": r(o.success.astype(bool).mean(), 4),
+            "success_5pct_frac": r(o.success_5pct.astype(str).eq("True").mean(), 4),
+            "unit_ok_frac": r(o.unit_ok.astype(str).eq("True").mean(), 4),
+            "end_error_median_pct": r(err.median()), "end_error_p90_pct": r(err.quantile(0.9)),
+            "end_error_p95_pct": r(err.quantile(0.95)),
+            "success_by_orientation": {("vertical" if v else "horizontal"): r(g.success.astype(bool).mean(), 4)
+                                       for v, g in o.groupby("vertical")},
+            "success_by_nticks": {int(k): r(g.success.astype(bool).mean(), 4) for k, g in o.groupby("nticks")},
+            "success_by_fontsize": {int(k): r(g.success.astype(bool).mean(), 4) for k, g in o.groupby("fontsize")},
+            "failure_reasons": {str(k): int(v) for k, v in
+                                o[~o.success.astype(bool)].reason.fillna("end_error>tol").value_counts().items()},
+        }
+
+    if (R / "detection_eval.json").exists():
+        M["detection"] = json.loads((R / "detection_eval.json").read_text(encoding="utf-8")).get("splits")
+
+    if (R / "tier2_results.csv").exists():
+        t = pd.read_csv(R / "tier2_results.csv")
+        M["tier2"] = {}
+        for cs, tc in t.groupby("color_space"):
+            esm = tc[tc.panel == "esm"]
+            okp = esm[esm.status == "ok"]
+            by_var = {}
+            for v, g in esm.groupby("variant"):
+                go = g[g.status == "ok"]
+                by_var[v] = {"n": int(len(g)), "detected": r((g.status != "map_not_detected").mean(), 4),
+                             "bar_read": r(g.status.isin(["ok", "low_valid_ratio", "wrong_scale"]).mean(), 4),
+                             "quantified": r((g.status == "ok").mean(), 4),
+                             "scale_err_median_pct": r(go.scale_err.median() * 100) if len(go) else None,
+                             "nMAE_mean": r(go.nMAE_pct.mean()) if len(go) else None,
+                             "nMAE_IQR_mean": r(go.nMAE_IQR_pct.mean()) if len(go) else None,
+                             "median_dev_abs_mean": r(go.median_dev_pct.abs().mean()) if len(go) else None,
+                             "SSIM_mean": r(go.SSIM.mean()) if len(go) else None,
+                             "unit_ok": r(go.unit_ok.astype(float).mean(), 4) if len(go) else None,
+                             "status_counts": {str(k): int(n) for k, n in g.status.value_counts().items()}}
+            topo = tc[tc.panel == "topo"]
+            tg = topo[topo.status == "ok"]
+            M["tier2"][cs] = {
+                "n_panels_esm": int(len(esm)), "esm_ok_frac": r((esm.status == "ok").mean(), 4),
+                "esm_ok_frac_excluding_hbar": r((esm[esm.variant != "hbar"].status == "ok").mean(), 4),
+                "esm_ok_scale_err_median_pct": r(okp.scale_err.median() * 100),
+                "esm_ok_scale_err_p95_pct": r(okp.scale_err.quantile(0.95) * 100),
+                "esm_ok_nMAE_mean": r(okp.nMAE_pct.mean()), "esm_ok_nMAE_std": r(okp.nMAE_pct.std()),
+                "esm_ok_nMAE_IQR_mean": r(okp.nMAE_IQR_pct.mean()),
+                "esm_ok_median_dev_abs_mean": r(okp.median_dev_pct.abs().mean()),
+                "esm_ok_median_dev_abs_max": r(okp.median_dev_pct.abs().max()),
+                "esm_ok_SSIM_mean": r(okp.SSIM.mean()),
+                "by_variant": by_var,
+                "topo": ({"n": int(len(topo)), "quantified": r((topo.status == "ok").mean(), 4),
+                          "nMAE_mean": r(tg.nMAE_pct.mean()) if len(tg) else None,
+                          "median_dev_range_abs_mean": (r(tg.median_dev_range_pct.abs().mean())
+                                                        if len(tg) and "median_dev_range_pct" in tg else None),
+                          "SSIM_mean": r(tg.SSIM.mean()) if len(tg) else None} if len(topo) else None),
+            }
     return M
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ibw-dir", type=Path, default=Path("data/esm_ibw"))
+    ap.add_argument("--weights", type=Path, default=Path("detection/weights/afm_detect_best.pt"),
+                    help="detector weights (detection, tier2_eval)")
+    ap.add_argument("--data", type=Path, default=Path("detection/data.yaml"),
+                    help="detection dataset yaml (detection)")
+    ap.add_argument("--pdffigures2", type=Path, default=Path("tools/pdffigures2/pdffigures2.jar"))
     ap.add_argument("--skip", nargs="*", default=[], help="step keys to skip")
     ap.add_argument("--manifest-only", action="store_true")
     args = ap.parse_args()
@@ -169,7 +247,10 @@ def main():
             if key in args.skip:
                 print(f"\n[skip] {key}")
                 continue
-            full = [PY, *cmd] + (["--ibw-dir", str(args.ibw_dir)] if key in NEEDS_IBW else [])
+            full = ([PY, *cmd] + (["--ibw-dir", str(args.ibw_dir)] if key in NEEDS_IBW else [])
+                    + (["--weights", str(args.weights)] if key in NEEDS_WEIGHTS else [])
+                    + (["--data", str(args.data)] if key in NEEDS_DATA else [])
+                    + (["--pdffigures2", str(args.pdffigures2)] if key in NEEDS_PDFF else []))
             print("\n$", " ".join(full), flush=True)
             subprocess.run(full, cwd=ROOT, check=True)
 

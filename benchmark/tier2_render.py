@@ -101,12 +101,16 @@ def add_map(ax, data, cmap, size_um, p, unit, label_prefix=""):
     ax.set_xlabel("x (µm)", fontsize=p["fontsize"]); ax.set_ylabel("y (µm)", fontsize=p["fontsize"])
     ax.tick_params(labelsize=p["fontsize"] - 1)
     if p["scalebar"]:
-        ax.plot([0.08 * size_um, 0.08 * size_um + 1.0], [0.08 * size_um] * 2, color="white", lw=3,
+        # scale bar spanning a quarter of the field of view (1 µm on a 4 µm scan)
+        bar_um = size_um / 4
+        bar_label = f"{bar_um:g} µm" if bar_um >= 1 else f"{bar_um * 1000:g} nm"
+        ax.plot([0.08 * size_um, 0.08 * size_um + bar_um], [0.08 * size_um] * 2, color="white", lw=3,
                 solid_capstyle="butt")
-        ax.text(0.08 * size_um + 0.5, 0.11 * size_um, "1 µm", color="white", ha="center",
+        ax.text(0.08 * size_um + bar_um / 2, 0.11 * size_um, bar_label, color="white", ha="center",
                 va="bottom", fontsize=p["fontsize"], fontweight="bold")
         ax.text(0.03, 0.97, label_prefix or "ESM", transform=ax.transAxes, color="white",
                 ha="left", va="top", fontsize=p["fontsize"], fontweight="bold")
+    ax.set_xlim(0, size_um); ax.set_ylim(0, size_um)       # overlays must not autoscale the axes
     cb = plt.colorbar(im, ax=ax, orientation="horizontal" if p["horizontal"] else "vertical",
                       fraction=0.08 if p["horizontal"] else 0.046, pad=0.18 if p["horizontal"] else 0.03)
     cb.locator = MaxNLocator(nbins=p["nticks"] - 1, min_n_ticks=2) if p["nticks"] > 2 else \
@@ -173,7 +177,9 @@ def run_pdffigures2(jar, pdf_path, out_dir, dpi=150):
     out_dir.mkdir(parents=True, exist_ok=True)
     cmd = ["java", "-jar", str(jar), "-m", str(out_dir) + "/", "-d", str(out_dir) + "/",
            "-i", str(dpi), str(pdf_path)]
-    subprocess.run(cmd, check=True, capture_output=True)
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:        # the PyMuPDF fallback below is used when nothing is extracted
+        print(f"  pdffigures2 failed (exit {r.returncode}): {r.stderr.strip()[:200]}", file=sys.stderr)
 
 
 def main():

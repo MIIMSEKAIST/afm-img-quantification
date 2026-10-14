@@ -42,37 +42,12 @@ def merge_boxes(boxes, iou_threshold=0.3):
     return kept
 
 
-def trim_axes_frame(crop_rgb, max_frac=0.08, dark=90, line_frac=0.7):
-    """Cut a map crop to the interior of its axes frame.
-
-    Detector boxes usually include the axes spines (thin dark lines) and part
-    of the tick marks. Each edge is scanned inward over at most ``max_frac`` of
-    the crop for a dark line spanning >= ``line_frac`` of the edge; the crop is
-    then cut just inside the innermost such line. Returns (crop, (x0, y0, x1, y1))
-    with the offsets relative to the input crop.
-    """
-    H, W = crop_rgb.shape[:2]
-    gray = crop_rgb.astype(int).mean(axis=2)
-    dark_rows = (gray < dark).mean(axis=1)          # fraction of dark pixels per row
-    dark_cols = (gray < dark).mean(axis=0)
-    my, mx = max(1, int(max_frac * H)), max(1, int(max_frac * W))
-    y0 = max([i + 1 for i in range(my) if dark_rows[i] >= line_frac], default=0)
-    y1 = min([i for i in range(H - my, H) if dark_rows[i] >= line_frac], default=H)
-    x0 = max([i + 1 for i in range(mx) if dark_cols[i] >= line_frac], default=0)
-    x1 = min([i for i in range(W - mx, W) if dark_cols[i] >= line_frac], default=W)
-    # one extra pixel inside the line (anti-aliasing)
-    y0, x0 = min(y0 + (1 if y0 else 0), H - 2), min(x0 + (1 if x0 else 0), W - 2)
-    y1, x1 = max(y1 - (1 if y1 < H else 0), y0 + 2), max(x1 - (1 if x1 < W else 0), x0 + 2)
-    return crop_rgb[y0:y1, x0:x1], (x0, y0, x1, y1)
-
 
 class FigurePipeline:
     def __init__(self, weights, conf=0.5, iou_merge=0.3, color_space="cielab",
                  mask_space="cielab", distance_threshold=20.0, margin_trim=0.005,
-                 bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None,
-                 trim_frame=True):
+                 bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None):
         self.weights = str(weights)
-        self.trim_frame = trim_frame
         self.conf = conf
         self.iou_merge = iou_merge
         self.engine_kw = dict(color_space=color_space, mask_space=mask_space,
@@ -155,9 +130,6 @@ class FigurePipeline:
                 panels.append(panel)
                 continue
             crop = image_rgb[my0:my1, mx0:mx1]
-            if self.trim_frame:
-                crop, (fx0, fy0, fx1, fy1) = trim_axes_frame(crop)
-                mx0, my0, mx1, my1 = mx0 + fx0, my0 + fy0, mx0 + fx1, my0 + fy1
             vm, valid, qc = quantify_map(crop, bar["strip"], bar["vmin"], bar["vmax"], **self.engine_kw)
             qc.update({"vmin": bar["vmin"], "vmax": bar["vmax"], "unit": bar.get("unit"),
                        "n_anchors": bar.get("n_anchors"), "ocr_conf_min": bar["fit"].get("ocr_conf_min"),
