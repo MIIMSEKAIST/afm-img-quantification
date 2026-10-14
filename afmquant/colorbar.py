@@ -62,8 +62,9 @@ def _extend_along_axis(diff, bbox, orientation, thr, max_gap=2):
     H, W = diff.shape
     x0, y0, x1, y1 = bbox
     if orientation == "vertical":
-        left = list(range(max(0, x0 - 3), min(W, x0 + 1)))
-        right = list(range(max(0, x1 - 1), min(W, x1 + 3)))
+        # the outline may lie just inside or just outside the component bbox
+        left = list(range(max(0, x0 - 3), min(W, x0 + 3)))
+        right = list(range(max(0, x1 - 3), min(W, x1 + 3)))
         if left and right:
             score = np.minimum(diff[:, left].max(axis=1), diff[:, right].max(axis=1))
         else:
@@ -86,8 +87,8 @@ def _extend_along_axis(diff, bbox, orientation, thr, max_gap=2):
                 if g > max_gap:
                     break
         return (x0, lo, x1, hi)
-    top = list(range(max(0, y0 - 3), min(H, y0 + 1)))
-    bottom = list(range(max(0, y1 - 1), min(H, y1 + 3)))
+    top = list(range(max(0, y0 - 3), min(H, y0 + 3)))
+    bottom = list(range(max(0, y1 - 3), min(H, y1 + 3)))
     if top and bottom:
         score = np.minimum(diff[top, :].max(axis=0), diff[bottom, :].max(axis=0))
     else:
@@ -156,6 +157,20 @@ def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, ro
             x0, y0 = min(x0, cx), min(y0, cy)
             x1, y1 = max(x1, cx + cw), max(y1, cy + ch)
     orientation = "vertical" if (y1 - y0) >= (x1 - x0) else "horizontal"
+    if roi is not None:
+        # the region must not be the edge of a larger image (e.g. the map next
+        # to a falsely detected bar): compare with the unrestricted components
+        fg_all = cv2.morphologyEx((diff > fg_threshold).astype(np.uint8), cv2.MORPH_OPEN,
+                                  np.ones((k, k), np.uint8))
+        n2, lab2, st2, _ = cv2.connectedComponentsWithStats(fg_all, connectivity=8)
+        inside = lab2[y0:y1, x0:x1]
+        inside = inside[inside > 0]
+        lbl = int(np.bincount(inside).argmax()) if inside.size else 0
+        if lbl > 0:
+            fw, fh = int(st2[lbl, cv2.CC_STAT_WIDTH]), int(st2[lbl, cv2.CC_STAT_HEIGHT])
+            if fw > 1.5 * (x1 - x0) + 6 and fh > 0.8 * (y1 - y0) if orientation == "vertical" else \
+               fh > 1.5 * (y1 - y0) + 6 and fw > 0.8 * (x1 - x0):
+                return None
     bbox = _extend_along_axis(diff, (x0, y0, x1, y1), orientation, thr=fg_threshold * 0.5)
     return bbox, orientation
 

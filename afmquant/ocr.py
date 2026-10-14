@@ -280,8 +280,19 @@ def anchors_from_items(items, bar_bbox, orientation, corridor=4.0, axis_slack=0.
                      (x0 - axis_slack * bw <= it["cx"] <= x1 + axis_slack * bw)
             axis_px, pos = it["cx"], (it["cx"] - x0) / bw
         if beside:
-            anchors.append((float(pos), float(val), float(it["conf"]), float(axis_px)))
+            side = (it["cx"] > (x0 + x1) / 2) if orientation == "vertical" else (it["cy"] > (y0 + y1) / 2)
+            anchors.append((float(pos), float(val), float(it["conf"]), float(axis_px), bool(side)))
             anchor_units.append(trailing_unit)
+    # tick labels of one bar sit on one side of it; numbers on the other side
+    # belong to something else (e.g. the tick labels of a neighbouring axis)
+    if len(anchors) >= 3:
+        n_true = sum(1 for a in anchors if a[4])
+        majority = n_true >= len(anchors) - n_true
+        keep = [i for i, a in enumerate(anchors) if a[4] == majority]
+        if 2 <= len(keep) < len(anchors):
+            anchors = [anchors[i] for i in keep]
+            anchor_units = [anchor_units[i] for i in keep]
+    anchors = [a[:4] for a in anchors]
     unit = None
     tagged = [u for u in anchor_units if u is not None]
     if tagged:
@@ -397,9 +408,17 @@ def read_colorbar(crop_rgb, ocr: ColorbarOCR, n=256, margin_frac=0.01, roi=None)
         if units:
             unit = max(units, key=lambda u: u[1])[0]
 
-    # widen the gradient extent to the outermost tick labels if they lie outside
+    # widen the gradient extent to the outermost tick labels if they lie outside;
+    # only labels consistent with a preliminary fit of the labels inside the bar
+    # are trusted (a number beside the bar end may belong to another axis)
     if anchors:
-        px = [a[3] for a in anchors]
+        inside = [a for a in anchors if -0.05 <= a[0] <= 1.05]
+        trusted = list(inside)
+        outside = [a for a in anchors if a not in inside]
+        if outside and len(inside) >= 2 and np.ptp([a[0] for a in inside]) >= 0.05:
+            b0, a0 = np.polyfit([a[0] for a in inside], [a[1] for a in inside], 1)
+            trusted += [a for a in outside if abs(a0 + b0 * a[0] - a[1]) <= 0.05 * (abs(b0) + 1e-12)]
+        px = [a[3] for a in trusted] if trusted else [a[3] for a in anchors]
         x0, y0, x1, y1 = ex["bbox"]
         lo_b, hi_b = (y0, y1) if ex["orientation"] == "vertical" else (x0, x1)
         L = hi_b - lo_b

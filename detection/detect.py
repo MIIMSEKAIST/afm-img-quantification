@@ -53,9 +53,14 @@ def merge_overlapping_boxes(boxes, iou_threshold=0.3):
 
 
 def iter_images(images: Path):
+    """Image files in a directory (case-insensitive extensions, no duplicates on
+    case-insensitive file systems)."""
     if images.is_dir():
-        for ext in ("*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG"):
-            yield from sorted(images.glob(ext))
+        seen = set()
+        for f in sorted(images.iterdir()):
+            if f.suffix.lower() in (".png", ".jpg", ".jpeg") and f.resolve() not in seen:
+                seen.add(f.resolve())
+                yield f
     else:
         yield images
 

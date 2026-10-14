@@ -45,13 +45,39 @@ def iou(a, b):
     return inter / ua if ua > 0 else 0.0
 
 
-def score_panel(gt, value_map, valid, vmin_true, vmax_true):
-    """Resample the reconstruction to the GT grid and compute the metrics."""
+def _best_shift(gt, vm, vmask, max_shift=4):
+    """Integer (dy, dx) shift of the reconstruction that maximises its
+    correlation with ground truth (the detector box is not pixel-exact)."""
+    best, best_c = (0, 0), -2.0
+    for dy in range(-max_shift, max_shift + 1):
+        for dx in range(-max_shift, max_shift + 1):
+            s = np.roll(np.roll(vm, dy, axis=0), dx, axis=1)
+            m = np.roll(np.roll(vmask, dy, axis=0), dx, axis=1)
+            m[:max_shift, :] = m[-max_shift:, :] = m[:, :max_shift] = m[:, -max_shift:] = False
+            if m.sum() < 100:
+                continue
+            c = np.corrcoef(gt[m], s[m])[0, 1]
+            if c > best_c:
+                best, best_c = (dy, dx), c
+    return best, best_c
+
+
+def score_panel(gt, value_map, valid, vmin_true, vmax_true, align=True):
+    """Resample the reconstruction to the GT grid (and align it by an integer
+    shift of up to 4 px) and compute the metrics."""
     H, W = gt.shape
-    vm = cv2.resize(value_map.astype(np.float32), (W, H), interpolation=cv2.INTER_AREA)
+    interp = cv2.INTER_AREA if value_map.shape[0] >= H else cv2.INTER_LINEAR
+    vm = cv2.resize(value_map.astype(np.float32), (W, H), interpolation=interp)
     vmask = cv2.resize(valid.astype(np.uint8), (W, H), interpolation=cv2.INTER_NEAREST).astype(bool)
     if vmask.sum() < 0.05 * vmask.size:
         return None
+    shift, corr = (0, 0), np.nan
+    if align:
+        shift, corr = _best_shift(gt, vm, vmask)
+        vm = np.roll(np.roll(vm, shift[0], axis=0), shift[1], axis=1)
+        vmask = np.roll(np.roll(vmask, shift[0], axis=0), shift[1], axis=1)
+        k = 4
+        vmask[:k, :] = vmask[-k:, :] = vmask[:, :k] = vmask[:, -k:] = False
     rng = gt.max() - gt.min() + 1e-12
     iqr = np.subtract(*np.percentile(gt, [75, 25])) + 1e-12
     g, r = gt[vmask], vm[vmask]
@@ -62,7 +88,8 @@ def score_panel(gt, value_map, valid, vmin_true, vmax_true):
             "median_dev_pct": (np.median(r) / np.median(g) - 1) * 100,
             "mean_dev_pct": (r.mean() / g.mean() - 1) * 100,
             "SSIM": float(ssim(gn, rn, data_range=1.0)),
-            "valid_pixel_ratio_gtgrid": float(vmask.mean())}
+            "valid_pixel_ratio_gtgrid": float(vmask.mean()),
+            "align_shift_px": f"{shift[0]},{shift[1]}", "align_corr": float(corr)}
 
 
 def main():

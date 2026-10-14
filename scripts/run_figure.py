@@ -25,9 +25,14 @@ COL = {"map": (0, 200, 0), "bar": (220, 0, 220), "ok": (0, 200, 0), "fail": (0, 
 
 
 def iter_images(p: Path):
+    """Image files in a directory (case-insensitive extensions, no duplicates on
+    case-insensitive file systems)."""
     if p.is_dir():
-        for ext in ("*.png", "*.jpg", "*.jpeg", "*.PNG", "*.JPG"):
-            yield from sorted(p.glob(ext))
+        seen = set()
+        for f in sorted(p.iterdir()):
+            if f.suffix.lower() in (".png", ".jpg", ".jpeg") and f.resolve() not in seen:
+                seen.add(f.resolve())
+                yield f
     else:
         yield p
 

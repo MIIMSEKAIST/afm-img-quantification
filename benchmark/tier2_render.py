@@ -118,10 +118,15 @@ def add_map(ax, data, cmap, size_um, p, unit, label_prefix=""):
 
 
 def axes_rel_bbox(ax, fig, dpi):
-    """Axes box (data area) as fractions of the saved canvas."""
+    """Axes box (data area) as fractions of the saved canvas.
+
+    The window extent is reported at the figure's *current* dpi, so the figure
+    must be created with the save dpi (plt.subplots(..., dpi=dpi)); the canvas
+    size is taken from the renderer to stay consistent.
+    """
     fig.canvas.draw()
     bb = ax.get_window_extent(renderer=fig.canvas.get_renderer())
-    W, H = fig.get_size_inches() * dpi
+    W, H = fig.canvas.get_width_height()
     return [bb.x0 / W, 1 - bb.y1 / H, bb.x1 / W, 1 - bb.y0 / H]      # x0, y0, x1, y1 (top-left origin)
 
 
@@ -131,13 +136,13 @@ def render_case(stem, gt_pm, height_nm, cmap, p, size_um):
     plt.rcParams.update({"font.size": p["fontsize"]})
     panels = []
     if p["layout"] == "single":
-        fig, ax = plt.subplots(figsize=(3.4, 3.0) if not p["horizontal"] else (3.0, 3.6))
+        fig, ax = plt.subplots(figsize=(3.4, 3.0) if not p["horizontal"] else (3.0, 3.6), dpi=p["dpi"])
         vmin, vmax, _ = add_map(ax, gt_pm, cmap, size_um, p, UNIT)
         fig.tight_layout()
         panels.append(dict(name="esm", gt="esm", cmap=cmap, vmin=vmin, vmax=vmax, unit=UNIT,
                            bbox=axes_rel_bbox(ax, fig, p["dpi"])))
     else:
-        fig, axes = plt.subplots(2, 2, figsize=(6.8, 6.0))
+        fig, axes = plt.subplots(2, 2, figsize=(6.8, 6.0), dpi=p["dpi"])
         vmin, vmax, _ = add_map(axes[0, 0], gt_pm, cmap, size_um, p, UNIT, label_prefix="(a)")
         panels.append(dict(name="esm", gt="esm", cmap=cmap, vmin=vmin, vmax=vmax, unit=UNIT))
         hvmin, hvmax, _ = add_map(axes[0, 1], height_nm, "gray", size_um, p, "nm", label_prefix="(b)")
@@ -263,8 +268,13 @@ def main():
                                      pdf_source=source))
         print(f"  {vname}: {len(cases)} figures")
 
-    (args.out / "manifest.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
-    print(f"manifest: {len(manifest)} figures -> {args.out / 'manifest.json'}")
+    # merge with an existing manifest: entries of variants not rendered in this run are kept
+    mpath = args.out / "manifest.json"
+    if mpath.exists():
+        old = json.loads(mpath.read_text(encoding="utf-8"))
+        manifest = [m for m in old if m["variant"] not in args.variants] + manifest
+    mpath.write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+    print(f"manifest: {len(manifest)} figures -> {mpath}")
 
 
 if __name__ == "__main__":
