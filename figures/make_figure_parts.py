@@ -34,7 +34,7 @@ COLORMAPS = ["copper", "hot", "jet", "viridis"]
 CMAP_HEX  = {"copper":"#b87333","hot":"#d62728","jet":"#1f77b4","viridis":"#2ca02c"}
 JPEG_Q    = 85
 SCALEBAR_UM = 1.0
-DPI       = 300
+DPI       = 600
 # Fig4 대표 스캔 (stem, 재료, 렌더 colormap) — 자유 교체
 FIG4_REPS = [
     ("LICGC_01_4um",           "LICGC",   "copper"),

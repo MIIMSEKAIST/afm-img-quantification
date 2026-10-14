@@ -97,7 +97,7 @@ def main():
         patch.set_facecolor(color); patch.set_alpha(0.7)
     ax.set_xticks(positions); ax.set_xticklabels(labels, fontsize=7)
     ax.set_ylabel("nMAE (%)"); ax.set_title("Reconstruction error by material and colormap")
-    fig.tight_layout(); fig.savefig(OUT / "FigS2_material_colormap_breakdown.png", dpi=300)
+    fig.tight_layout(); fig.savefig(OUT / "FigS2_material_colormap_breakdown.png", dpi=600)
     plt.close(fig)
     print("Figure S2 saved")
 
@@ -114,7 +114,7 @@ def main():
         axes[1, j].imshow(gt, cmap="gray")
         axes[1, j].set_title("Ground truth (same for all)", fontsize=10); axes[1, j].axis("off")
     fig.suptitle(f"Benchmark rendering example: {sample.stem}", fontsize=13)
-    fig.tight_layout(); fig.savefig(OUT / "FigS1_rendering_examples.png", dpi=300)
+    fig.tight_layout(); fig.savefig(OUT / "FigS1_rendering_examples.png", dpi=600)
     plt.close(fig)
     print("Figure S1 saved")
     print(f"\nAll supplementary materials in: {OUT}")
