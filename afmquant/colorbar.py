@@ -168,8 +168,15 @@ def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, ro
         lbl = int(np.bincount(inside).argmax()) if inside.size else 0
         if lbl > 0:
             fw, fh = int(st2[lbl, cv2.CC_STAT_WIDTH]), int(st2[lbl, cv2.CC_STAT_HEIGHT])
-            if fw > 1.5 * (x1 - x0) + 6 and fh > 0.8 * (y1 - y0) if orientation == "vertical" else \
-               fh > 1.5 * (y1 - y0) + 6 and fw > 0.8 * (x1 - x0):
+            rx0, ry0, rx1, ry1 = roi
+            mx, my = roi_margin * (rx1 - rx0), roi_margin * (ry1 - ry0)
+            if orientation == "vertical":
+                clipped = x1 >= int(min(w, rx1 + mx)) - 1 or x0 <= int(max(0, rx0 - mx)) + 1
+                larger = fw > 1.5 * (x1 - x0) + 6 and fh > 0.5 * (y1 - y0)
+            else:
+                clipped = y1 >= int(min(h, ry1 + my)) - 1 or y0 <= int(max(0, ry0 - my)) + 1
+                larger = fh > 1.5 * (y1 - y0) + 6 and fw > 0.5 * (x1 - x0)
+            if clipped and larger:
                 return None
     bbox = _extend_along_axis(diff, (x0, y0, x1, y1), orientation, thr=fg_threshold * 0.5)
     return bbox, orientation

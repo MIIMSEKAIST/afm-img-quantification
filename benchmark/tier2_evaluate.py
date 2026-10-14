@@ -107,7 +107,9 @@ def main():
     if args.variants:
         manifest = [m for m in manifest if m["variant"] in args.variants]
     ocr = ColorbarOCR()
-    pipes = {cs: FigurePipeline(args.weights, color_space=cs, ocr=ocr) for cs in args.color_spaces}
+    # detection + colour-bar reading are done once; only the lookup is repeated per colour space
+    pipe0 = FigurePipeline(args.weights, color_space=args.color_spaces[0], ocr=ocr)
+    from afmquant.engine import quantify_map  # noqa: E402
     if args.overlay_dir:
         args.overlay_dir.mkdir(parents=True, exist_ok=True)
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -123,11 +125,27 @@ def main():
             continue
         image = np.array(Image.open(m["image"]).convert("RGB"))
         H, W = image.shape[:2]
-        for cs, pipe in pipes.items():
-            res = pipe.process(image, figure_id=m["case_id"])
-            if args.overlay_dir and cs == args.color_spaces[0]:
-                Image.fromarray(draw_overlay(image, res)).save(
-                    args.overlay_dir / f"{m['variant']}__{m['case_id']}.png")
+        res0 = pipe0.process(image, figure_id=m["case_id"])
+        if args.overlay_dir:
+            Image.fromarray(draw_overlay(image, res0)).save(
+                args.overlay_dir / f"{m['variant']}__{m['case_id']}.png")
+        for cs in args.color_spaces:
+            res = res0
+            if cs != args.color_spaces[0]:
+                # re-quantify the same crops with the other matching space
+                res = dict(res0)
+                res["panels"] = []
+                for p in res0["panels"]:
+                    q = dict(p)
+                    if p["value_map"] is not None:
+                        mx0, my0, mx1, my1 = p["map_crop_box"]
+                        bar = res0["bars"][p["bar_idx"]]
+                        vm, valid, qc = quantify_map(image[my0:my1, mx0:mx1], bar["strip"], bar["vmin"],
+                                                     bar["vmax"], color_space=cs, mask_space="cielab")
+                        q["value_map"], q["valid_mask"] = vm, valid
+                        q["qc"] = {**p["qc"], **{k: v for k, v in qc.items()}}
+                        q["status"] = "ok" if qc["valid_pixel_ratio"] >= 0.5 else "low_valid_ratio"
+                    res["panels"].append(q)
             for pn in m["panels"]:
                 gt = np.load(pn["gt_file"]).astype(float)
                 bx = [pn["bbox"][0] * W, pn["bbox"][1] * H, pn["bbox"][2] * W, pn["bbox"][3] * H]
