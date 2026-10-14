@@ -77,8 +77,13 @@ def main():
     # --- Table S1 ---
     cols = ["case_id", "material", "colormap", "nMAE_pct", "mean_error_pct",
             "std_error_pct", "normalized_EMD_pct", "SSIM", "valid_pixel_ratio"]
-    df[cols].round(3).to_excel(OUT / "TableS1_validation_cases.xlsx", index=False)
-    print(f"Table S1: {len(df)} cases -> TableS1_validation_cases.xlsx")
+    # Supplementary Data 1: all per-case metrics (extended set added in revision R1)
+    cols = [c for c in ["case_id", "scan", "material", "colormap", "nMAE_pct", "nMAE_IQR_pct", "nMAE_SD_pct",
+                        "mean_error_signed_pct", "std_error_signed_pct", "mean_error_pct", "std_error_pct",
+                        "nMAE_allpix_pct", "normalized_EMD_pct", "SSIM", "valid_pixel_ratio", "mean_cielab_distance",
+                        "IQR_over_range", "levels_in_IQR"] if c in df.columns]
+    df[cols].round(4).to_excel(OUT / "Supplementary_Data_1_validation_cases.xlsx", index=False)
+    print(f"Supplementary Data 1: {len(df)} cases, {len(cols)} columns -> Supplementary_Data_1_validation_cases.xlsx")
 
     # --- Figure S2: nMAE by material x colormap ---
     fig, ax = plt.subplots(figsize=(10, 5))
