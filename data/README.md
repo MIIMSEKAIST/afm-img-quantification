@@ -35,14 +35,31 @@ analysis scripts read that manifest and use only those files, so the reported
 counts (26 scans → 104 cases) are reproduced even if extra `.ibw` files are
 present in this directory.
 
-The Zenodo deposit additionally contains **3 auxiliary single-scan files**
-(`LICGC.ibw`, `LMNO_pristine.ibw`, `NCM811_pristine.ibw`) that are *not* part of
-the benchmark; they are provided only as standalone examples and are ignored by
-the scripts.
+The Zenodo deposit (v1) additionally contains **3 auxiliary single-scan files**
+(`LICGC.ibw`, `LMNO_pristine.ibw`, `NCM811_pristine.ibw`). They are byte-identical
+copies of `LICGC_01_4um.ibw`, `LMNO_pristine_03_4um.ibw` and
+`NCM811_pristine_03_4um.ibw`, are *not* part of the benchmark and are ignored by
+the scripts (they will be removed in the next dataset version).
 
-## Not included (copyright)
+Scan sizes are encoded in the file names; note that `NCM811_pristine_07_4um.ibw`
+was acquired with a 2 µm scan size according to its Igor metadata (the name is
+kept for continuity with the published case identifiers).
 
-The literature figure corpus used for the detection demonstrations
-(4,853 source PDFs and ~39,000 extracted figures) is **not** redistributed: it
-is copyrighted by the original publishers. The `collection/` scripts show how it
-is assembled from public metadata (Crossref) and open tools.
+## Literature corpus (not redistributed; copyright)
+
+The literature figure corpus used for the detection evaluation is **not**
+redistributed: it is copyrighted by the original publishers. The `collection/`
+scripts show how it is assembled from public metadata (Crossref) and open tools.
+Its inventory, for reference:
+
+| stage | count |
+|-------|-------|
+| Crossref records matching the AFM query (2010–) | 50,000 |
+| open-access PDFs obtained (Unpaywall) | 4,853 |
+| PDFs processed by pdffigures2 (280 failed) | 4,573 |
+| extracted images: figures / tables | 17,232 / 2,262 |
+| figures registered with captions in `figures.parquet` (pilot subset) | 4,422 (1,164 papers) |
+
+The detection evaluation of the revised manuscript uses a paper-wise random
+sample of 1,000 figures (one per paper) drawn from the 17,232 extracted figures,
+excluding papers represented in the detector training set.

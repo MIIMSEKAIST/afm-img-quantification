@@ -86,7 +86,9 @@ def score_panel(gt, value_map, valid, vmin_true, vmax_true, align=True):
     rn = np.clip((vm - gt.min()) / rng, -0.5, 1.5)
     return {"nMAE_pct": mae / rng * 100, "nMAE_IQR_pct": mae / iqr * 100,
             "median_dev_pct": (np.median(r) / np.median(g) - 1) * 100,
+            "median_dev_range_pct": (np.median(r) - np.median(g)) / rng * 100,   # for zero-centred data
             "mean_dev_pct": (r.mean() / g.mean() - 1) * 100,
+            "mean_dev_range_pct": (r.mean() - g.mean()) / rng * 100,
             "SSIM": float(ssim(gn, rn, data_range=1.0)),
             "valid_pixel_ratio_gtgrid": float(vmask.mean()),
             "align_shift_px": f"{shift[0]},{shift[1]}", "align_corr": float(corr)}

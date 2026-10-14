@@ -138,48 +138,55 @@ def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, ro
     n, _, stats, _ = cv2.connectedComponentsWithStats(fg_open, connectivity=8)
     if n <= 1:
         return None
-    comps = [(int(s[cv2.CC_STAT_AREA]), int(s[cv2.CC_STAT_LEFT]), int(s[cv2.CC_STAT_TOP]),
-              int(s[cv2.CC_STAT_WIDTH]), int(s[cv2.CC_STAT_HEIGHT])) for s in stats[1:]]
-    area, x, y, bw, bh = max(comps)
-    vertical = bh >= bw
-    x0, y0, x1, y1 = x, y, x + bw, y + bh
-    # merge components aligned with the largest one on the short axis
-    for a, cx, cy, cw, ch in comps:
-        if a < 0.05 * area or (cx, cy, cw, ch) == (x, y, bw, bh):
-            continue
-        if vertical:
-            ov = _overlap(x, x + bw, cx, cx + cw) / max(1, min(bw, cw))
-            similar = 0.5 <= cw / max(1, bw) <= 2.0
-        else:
-            ov = _overlap(y, y + bh, cy, cy + ch) / max(1, min(bh, ch))
-            similar = 0.5 <= ch / max(1, bh) <= 2.0
-        if ov >= 0.6 and similar:
-            x0, y0 = min(x0, cx), min(y0, cy)
-            x1, y1 = max(x1, cx + cw), max(y1, cy + ch)
-    orientation = "vertical" if (y1 - y0) >= (x1 - x0) else "horizontal"
+    comps = sorted([(int(s[cv2.CC_STAT_AREA]), int(s[cv2.CC_STAT_LEFT]), int(s[cv2.CC_STAT_TOP]),
+                     int(s[cv2.CC_STAT_WIDTH]), int(s[cv2.CC_STAT_HEIGHT])) for s in stats[1:]],
+                   reverse=True)
+    lab_all = st_all = None
     if roi is not None:
-        # the region must not be the edge of a larger image (e.g. the map next
-        # to a falsely detected bar): compare with the unrestricted components
         fg_all = cv2.morphologyEx((diff > fg_threshold).astype(np.uint8), cv2.MORPH_OPEN,
                                   np.ones((k, k), np.uint8))
-        n2, lab2, st2, _ = cv2.connectedComponentsWithStats(fg_all, connectivity=8)
-        inside = lab2[y0:y1, x0:x1]
-        inside = inside[inside > 0]
-        lbl = int(np.bincount(inside).argmax()) if inside.size else 0
-        if lbl > 0:
-            fw, fh = int(st2[lbl, cv2.CC_STAT_WIDTH]), int(st2[lbl, cv2.CC_STAT_HEIGHT])
-            rx0, ry0, rx1, ry1 = roi
-            mx, my = roi_margin * (rx1 - rx0), roi_margin * (ry1 - ry0)
-            if orientation == "vertical":
-                clipped = x1 >= int(min(w, rx1 + mx)) - 1 or x0 <= int(max(0, rx0 - mx)) + 1
-                larger = fw > 1.5 * (x1 - x0) + 6 and fh > 0.5 * (y1 - y0)
+        _, lab_all, st_all, _ = cv2.connectedComponentsWithStats(fg_all, connectivity=8)
+
+    # candidates in order of area; a candidate that is the clipped edge of a
+    # larger image (e.g. the map next to the bar) is skipped, not fatal
+    for area, x, y, bw, bh in comps:
+        if area < 0.02 * comps[0][0]:
+            break
+        vertical = bh >= bw
+        x0, y0, x1, y1 = x, y, x + bw, y + bh
+        # merge components aligned with this one on the short axis
+        for a, cx, cy, cw, ch in comps:
+            if a < 0.05 * area or (cx, cy, cw, ch) == (x, y, bw, bh):
+                continue
+            if vertical:
+                ov = _overlap(x, x + bw, cx, cx + cw) / max(1, min(bw, cw))
+                similar = 0.5 <= cw / max(1, bw) <= 2.0
             else:
-                clipped = y1 >= int(min(h, ry1 + my)) - 1 or y0 <= int(max(0, ry0 - my)) + 1
-                larger = fh > 1.5 * (y1 - y0) + 6 and fw > 0.5 * (x1 - x0)
-            if clipped and larger:
-                return None
-    bbox = _extend_along_axis(diff, (x0, y0, x1, y1), orientation, thr=fg_threshold * 0.5)
-    return bbox, orientation
+                ov = _overlap(y, y + bh, cy, cy + ch) / max(1, min(bh, ch))
+                similar = 0.5 <= ch / max(1, bh) <= 2.0
+            if ov >= 0.6 and similar:
+                x0, y0 = min(x0, cx), min(y0, cy)
+                x1, y1 = max(x1, cx + cw), max(y1, cy + ch)
+        orientation = "vertical" if (y1 - y0) >= (x1 - x0) else "horizontal"
+        if roi is not None:
+            inside = lab_all[y0:y1, x0:x1]
+            inside = inside[inside > 0]
+            lbl = int(np.bincount(inside).argmax()) if inside.size else 0
+            if lbl > 0:
+                fw, fh = int(st_all[lbl, cv2.CC_STAT_WIDTH]), int(st_all[lbl, cv2.CC_STAT_HEIGHT])
+                rx0, ry0, rx1, ry1 = roi
+                mx, my = roi_margin * (rx1 - rx0), roi_margin * (ry1 - ry0)
+                if orientation == "vertical":
+                    clipped = x1 >= int(min(w, rx1 + mx)) - 1 or x0 <= int(max(0, rx0 - mx)) + 1
+                    larger = fw > 1.5 * (x1 - x0) + 6 and fh > 0.5 * (y1 - y0)
+                else:
+                    clipped = y1 >= int(min(h, ry1 + my)) - 1 or y0 <= int(max(0, ry0 - my)) + 1
+                    larger = fh > 1.5 * (y1 - y0) + 6 and fw > 0.5 * (x1 - x0)
+                if clipped and larger:
+                    continue
+        bbox = _extend_along_axis(diff, (x0, y0, x1, y1), orientation, thr=fg_threshold * 0.5)
+        return bbox, orientation
+    return None
 
 
 def sample_strip(crop_rgb, bbox, orientation, n=256, band=0.5):
