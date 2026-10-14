@@ -26,7 +26,7 @@ def main():
     ap.add_argument("--epochs", type=int, default=100)
     ap.add_argument("--imgsz", type=int, default=640)
     ap.add_argument("--batch", type=int, default=8)
-    ap.add_argument("--patience", type=int, default=30)
+    ap.add_argument("--patience", type=int, default=20)
     ap.add_argument("--project", default="runs/afm_detect")
     ap.add_argument("--name", default="afm_detect")
     args = ap.parse_args()
@@ -39,10 +39,10 @@ def main():
         epochs=args.epochs, imgsz=args.imgsz, batch=args.batch,
         patience=args.patience, save=True,
         project=args.project, name=args.name, workers=0,
-        # augmentation
-        hsv_h=0.02, hsv_s=0.4, hsv_v=0.3,
+        # augmentation (identical to the released run, runs/afm_detect/v13/args.yaml)
+        hsv_h=0.015, hsv_s=0.3, hsv_v=0.2,
         flipud=0.3, fliplr=0.5, degrees=5.0,
-        scale=0.3, translate=0.1, mosaic=1.0, mixup=0.1,
+        scale=0.3, translate=0.1, mosaic=1.0, mixup=0.0,
     )
     print(f"Training complete. Best model under {args.project}/{args.name}/weights/best.pt")
 
