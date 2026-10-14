@@ -339,7 +339,10 @@ def fit_scale(anchors, scale=1.0, max_rel_residual=0.03):
                 aa = val[i] - bb * pos[i]
                 inl = np.abs(aa + bb * pos - val) <= max_rel_residual * (abs(bb) + 1e-12)
                 k = int(inl.sum())
-                if k >= max(2, int(np.ceil(0.6 * len(pos)))) and (best is None or k > best[0]):
+                # a consensus needs at least three labels: with three anchors and
+                # one misread label every pair "agrees" with itself, so the bar is
+                # rejected as inconsistent rather than read with a wrong scale
+                if k >= max(3, int(np.ceil(0.6 * len(pos)))) and (best is None or k > best[0]):
                     best = (k, inl)
         if best is not None:
             inl = best[1]
