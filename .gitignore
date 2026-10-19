@@ -27,3 +27,6 @@ runs/
 # Generated figure parts (regenerable)
 figures/parts/
 out/
+
+# model files downloaded by ultralytics at run time
+/*.pt
