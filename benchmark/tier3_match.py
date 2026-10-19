@@ -183,8 +183,13 @@ def ar_channel_unit(channel, note_kv=None, header_unit=None):
                 f, b = parse_unit(note_kv[key])
                 if b:
                     return b, "note"
+    # DART SHO results computed by the AR software carry a "DAC" prefix
+    # (DACAmplitude, DACPhase, DACFrequency, DACQFactor; shown as AmD/PhD/FrD/QD in AR)
+    rule_name = name[3:] if re.match(r"(?i)^dac[a-z]", name) else name
+    if re.match(r"(?i)^q(factor)?$", rule_name):
+        return None, "channel-name"                      # quality factor: dimensionless
     for rx, unit in _AR_UNIT_RULES:
-        if rx.match(name):
+        if rx.match(rule_name):
             return unit, "channel-name"
     if header_unit:
         f, b = parse_unit(header_unit)
