@@ -10,7 +10,8 @@ Added
 - `afmquant/afm_filter.py`: caption / unit based technique filter.
 - `benchmark/ocr_synthetic_test.py`: colour-bar reading test (300 synthetic colour bars).
 - `benchmark/tier2_render.py`, `benchmark/tier2_evaluate.py`: realistic-figure benchmark
-  (416 complete figures in 13 rendering variants, including a PDF route).
+  (468 complete figures in 15 rendering variants, including two-map figures that test the
+  map–colour-bar pairing and a PDF route).
 - `benchmark/subsampling_sweep.py`, `benchmark/baseline_comparison.py`,
   `benchmark/colormap_analysis.py`: JPEG chroma-subsampling decomposition, lookup
   baselines (sRGB vs CIELAB, projection, ideal strip) and colormap descriptors.

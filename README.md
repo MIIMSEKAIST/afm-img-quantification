@@ -18,7 +18,7 @@ lookup. Every stage is validated against ground truth:
 |---|---|---|
 | **Engine benchmark** (26 ESM scans × 4 colormaps, JPEG q85) | lookup only, exact scale given | nMAE **2.09 ± 0.76 %** of range, SSIM 0.81, scan median within 0.46 % |
 | **Colour-bar reading** (300 synthetic colour bars) | OCR + scale fit | scale read in 99 %, both end values within 2 % in **≈97 %** (median end error 0.5 %) |
-| **Realistic figures** (416 complete figures, 13 rendering variants) | detector → OCR → pairing → lookup | default variant: 100 % of panels quantified, scale error 0.4 %, scan median within 0.35 %, nMAE **2.7 %** |
+| **Realistic figures** (468 complete figures, 15 rendering variants) | detector → OCR → pairing → lookup | default variant: 100 % of panels quantified, scale error 0.4 %, scan median within 0.35 %, nMAE **2.7 %** |
 | **Detector** (held-out test figures) | map / colour-bar boxes | mAP@50 0.98 (mAP@50–95 0.91) |
 
 Known limitations: horizontal colour bars are not detected by the released
@@ -48,7 +48,7 @@ benchmark/
   baseline_comparison.py     lookup variants (sRGB vs CIELAB, projection, ideal strip)
   colormap_analysis.py       colormap descriptors (CIELAB path length, luminance share)
   ocr_synthetic_test.py      colour-bar reading test on synthetic colour bars
-  tier2_render.py            realistic-figure benchmark: figure generation (13 variants, PDF route)
+  tier2_render.py            realistic-figure benchmark: figure generation (15 variants, PDF route)
   tier2_evaluate.py          realistic-figure benchmark: end-to-end evaluation
   diffusivity_consistency.py reconstruction-to-diffusivity consistency check
 detection/           YOLO11m detector: train.py, evaluate.py, detect.py, data.yaml (weights via Releases)
