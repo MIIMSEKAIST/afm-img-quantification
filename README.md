@@ -3,8 +3,8 @@
 Colour-bar-guided reconstruction of quantitative Atomic Force Microscopy (AFM)
 data from published figures — the code and data accompanying:
 
-> **Quantitative reconstruction of atomic force microscopy data from published
-> figures** (title under revision)
+> **Recovering quantitative atomic force microscopy data from published figures:
+> a ground-truth-validated pipeline**
 > S. Ryu, D. Chen, B. Madika, S. Hong (KAIST). *Digital Discovery*, under revision (2026).
 
 A large amount of quantitative AFM data is locked inside published figures as

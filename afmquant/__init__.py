@@ -1,7 +1,7 @@
 """afmquant: color-bar-guided quantification of AFM figures.
 
-The validated core of "Quantitative Reconstruction of Atomic Force Microscopy
-Data from Published Figures: A Validated Machine Learning Pipeline".
+The validated core of "Recovering quantitative atomic force microscopy data from
+published figures: a ground-truth-validated pipeline".
 """
 from .engine import quantify_map
 from .render import render_to_published_style
