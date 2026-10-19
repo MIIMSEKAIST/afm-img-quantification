@@ -52,7 +52,7 @@ Per class on the test split: `afm_map` AP@50 0.995, `colorbar` AP@50 0.971.
 
 Behaviour on realistic figures (468 rendered figures, 15 variants) and on a
 random sample of 1,000 corpus figures and 100 figures with non-AFM colour-mapped
-panels is reported in the manuscript (Section 2.5–2.6 and Supplementary Note 7).
+panels is reported in the manuscript (Sections 2.6 and 2.8 and Supplementary Note 7).
 Known limitation: horizontal colour bars are not detected (0 of 26 in the
 realistic-figure benchmark); the column of y-axis tick labels is sometimes
 returned as a colour bar and is rejected by the colour-bar reader.
