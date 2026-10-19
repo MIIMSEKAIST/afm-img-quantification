@@ -16,6 +16,10 @@ Added
   `benchmark/colormap_analysis.py`: JPEG chroma-subsampling decomposition, lookup
   baselines (sRGB vs CIELAB, projection, ideal strip) and colormap descriptors.
 - `detection/evaluate.py`: held-out detector metrics; `scripts/run_figure.py`: CLI.
+- `benchmark/tier3_evaluate.py`, `benchmark/tier3_match.py`: evaluation on previously published
+  figures with archived raw scans (figure extraction from the publisher PDF as for the corpus,
+  full pipeline, automatic matching of each panel to the raw scan, channel and orientation it
+  shows, Tier 2 metrics); `benchmark/tier3_selftest.py`: synthetic self-test of that tool.
 - `reproduce_all.py`: one command regenerates every number of the manuscript
   (`results/numbers_manifest.json`).
 - `tests/`: 42 unit tests; `requirements.lock`: exact versions.
