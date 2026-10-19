@@ -20,6 +20,9 @@ Added
   figures with archived raw scans (figure extraction from the publisher PDF as for the corpus,
   full pipeline, automatic matching of each panel to the raw scan, channel and orientation it
   shows, Tier 2 metrics); `benchmark/tier3_selftest.py`: synthetic self-test of that tool.
+- `benchmark/dart_sho.py`: SHO drive amplitude, resonance frequency, Q and phase from the raw
+  channels of Asylum DART images (amplitude ratio and phase difference, independent of the phase
+  offset), written as .gsf so that published SHO-processed figures can be compared with raw data.
 - `reproduce_all.py`: one command regenerates every number of the manuscript
   (`results/numbers_manifest.json`).
 - `tests/`: 42 unit tests; `requirements.lock`: exact versions.
