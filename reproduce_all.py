@@ -193,7 +193,7 @@ def build_manifest():
         t = pd.read_csv(R / "tier2_results.csv")
         M["tier2"] = {}
         for cs, tc in t.groupby("color_space"):
-            esm = tc[tc.panel == "esm"]
+            esm = tc[tc.panel.str.startswith("esm")]          # esm_b: right-hand map of the two-map figures
             okp = esm[esm.status == "ok"]
             by_var = {}
             for v, g in esm.groupby("variant"):
@@ -207,7 +207,9 @@ def build_manifest():
                              "median_dev_abs_mean": r(go.median_dev_pct.abs().mean()) if len(go) else None,
                              "SSIM_mean": r(go.SSIM.mean()) if len(go) else None,
                              "unit_ok": r(go.unit_ok.astype(float).mean(), 4) if len(go) else None,
-                             "status_counts": {str(k): int(n) for k, n in g.status.value_counts().items()}}
+                             "status_counts": {str(k): int(n) for k, n in g.status.value_counts().items()},
+                             "pairing_correct": (r(g.pairing_ok.dropna().astype(float).mean(), 4)
+                                                 if "pairing_ok" in g and g.pairing_ok.notna().any() else None)}
             topo = tc[tc.panel == "topo"]
             tg = topo[topo.status == "ok"]
             M["tier2"][cs] = {

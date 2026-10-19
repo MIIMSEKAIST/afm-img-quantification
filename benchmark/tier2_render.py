@@ -75,6 +75,8 @@ VARIANTS = {
     "jpeg_q60": dict(jpeg_q=60),
     "png": dict(jpeg_q=None),
     "multipanel": dict(layout="2x2"),
+    "pair_shared": dict(layout="pair_shared"),     # two maps sharing one colour bar (Referee 1, M3)
+    "pair_same_cmap": dict(layout="pair_same"),    # two maps, same colormap, one colour bar each
     "pdf_extract": dict(pdf=True),
 }
 
@@ -91,11 +93,25 @@ def load_height(ibw_path):
     return np.nan_to_num(h, nan=0.0) * 1e9          # nm
 
 
-def add_map(ax, data, cmap, size_um, p, unit, label_prefix=""):
-    """imshow + colour bar + optional scale bar; returns (vmin, vmax, cbar)."""
+def style_colorbar(cb, vmin, vmax, p, unit):
+    cb.locator = MaxNLocator(nbins=p["nticks"] - 1, min_n_ticks=2) if p["nticks"] > 2 else \
+        matplotlib.ticker.FixedLocator([vmin, vmax])
+    cb.update_ticks()
+    cb.set_label(f"Amplitude ({unit})" if unit == UNIT else f"Height ({unit})", fontsize=p["fontsize"])
+    cb.ax.tick_params(labelsize=p["fontsize"] - 1)
+
+
+def add_map(ax, data, cmap, size_um, p, unit, label_prefix="", vrange=None, colorbar=True):
+    """imshow + colour bar + optional scale bar; returns (vmin, vmax, cbar, image).
+
+    ``vrange`` fixes the colour range (maps sharing one colour bar);
+    ``colorbar=False`` leaves the colour bar to the caller.
+    """
     vmin, vmax = float(np.nanmin(data)), float(np.nanmax(data))
     if p["clip"]:
         vmin, vmax = [float(v) for v in np.percentile(data, p["clip"])]
+    if vrange is not None:
+        vmin, vmax = vrange
     im = ax.imshow(data, cmap=cmap, vmin=vmin, vmax=vmax, extent=(0, size_um, 0, size_um),
                    interpolation="antialiased")
     ax.set_xlabel("x (µm)", fontsize=p["fontsize"]); ax.set_ylabel("y (µm)", fontsize=p["fontsize"])
@@ -111,14 +127,12 @@ def add_map(ax, data, cmap, size_um, p, unit, label_prefix=""):
         ax.text(0.03, 0.97, label_prefix or "ESM", transform=ax.transAxes, color="white",
                 ha="left", va="top", fontsize=p["fontsize"], fontweight="bold")
     ax.set_xlim(0, size_um); ax.set_ylim(0, size_um)       # overlays must not autoscale the axes
-    cb = plt.colorbar(im, ax=ax, orientation="horizontal" if p["horizontal"] else "vertical",
-                      fraction=0.08 if p["horizontal"] else 0.046, pad=0.18 if p["horizontal"] else 0.03)
-    cb.locator = MaxNLocator(nbins=p["nticks"] - 1, min_n_ticks=2) if p["nticks"] > 2 else \
-        matplotlib.ticker.FixedLocator([vmin, vmax])
-    cb.update_ticks()
-    cb.set_label(f"Amplitude ({unit})" if unit == UNIT else f"Height ({unit})", fontsize=p["fontsize"])
-    cb.ax.tick_params(labelsize=p["fontsize"] - 1)
-    return vmin, vmax, cb
+    cb = None
+    if colorbar:
+        cb = plt.colorbar(im, ax=ax, orientation="horizontal" if p["horizontal"] else "vertical",
+                          fraction=0.08 if p["horizontal"] else 0.046, pad=0.18 if p["horizontal"] else 0.03)
+        style_colorbar(cb, vmin, vmax, p, unit)
+    return vmin, vmax, cb, im
 
 
 def axes_rel_bbox(ax, fig, dpi):
@@ -134,23 +148,48 @@ def axes_rel_bbox(ax, fig, dpi):
     return [bb.x0 / W, 1 - bb.y1 / H, bb.x1 / W, 1 - bb.y0 / H]      # x0, y0, x1, y1 (top-left origin)
 
 
-def render_case(stem, gt_pm, height_nm, cmap, p, size_um):
+def render_case(stem, gt_pm, height_nm, cmap, p, size_um, second=None):
     """Render one figure; returns (png_bytes, panels) where panels lists the
-    GT panels with relative bboxes and true scale."""
+    GT panels with relative bboxes (map and own colour bar) and true scale.
+    ``second`` = (stem, gt, size_um) of the right-hand map of the two-map layouts."""
     plt.rcParams.update({"font.size": p["fontsize"]})
     panels = []
     if p["layout"] == "single":
         fig, ax = plt.subplots(figsize=(3.4, 3.0) if not p["horizontal"] else (3.0, 3.6), dpi=p["dpi"])
-        vmin, vmax, _ = add_map(ax, gt_pm, cmap, size_um, p, UNIT)
+        vmin, vmax, cb, _ = add_map(ax, gt_pm, cmap, size_um, p, UNIT)
         fig.tight_layout()
-        panels.append(dict(name="esm", gt="esm", cmap=cmap, vmin=vmin, vmax=vmax, unit=UNIT,
-                           bbox=axes_rel_bbox(ax, fig, p["dpi"])))
+        panels.append(dict(name="esm", gt="esm", stem=stem, cmap=cmap, vmin=vmin, vmax=vmax, unit=UNIT,
+                           bbox=axes_rel_bbox(ax, fig, p["dpi"]), bar_bbox=axes_rel_bbox(cb.ax, fig, p["dpi"])))
+    elif p["layout"] in ("pair_shared", "pair_same"):
+        stem2, gt2, size2 = second
+        shared = p["layout"] == "pair_shared"
+        # the shared colour bar spans both axes; constrained layout keeps its labels on the canvas
+        fig, axes = plt.subplots(1, 2, figsize=(6.8, 3.0), dpi=p["dpi"], layout="constrained" if shared else None)
+        if shared:
+            vr = (float(min(np.nanmin(gt_pm), np.nanmin(gt2))), float(max(np.nanmax(gt_pm), np.nanmax(gt2))))
+            v1 = add_map(axes[0], gt_pm, cmap, size_um, p, UNIT, label_prefix="(a)", vrange=vr, colorbar=False)
+            v2 = add_map(axes[1], gt2, cmap, size2, p, UNIT, label_prefix="(b)", vrange=vr, colorbar=False)
+            cb = fig.colorbar(v2[3], ax=list(axes), fraction=0.046, pad=0.02)
+            style_colorbar(cb, vr[0], vr[1], p, UNIT)
+            cbs = (cb, cb)
+            # constrained layout moves the axes slightly on every draw: run it once, then
+            # freeze it so that the recorded boxes match the saved image exactly
+            fig.canvas.draw()
+            fig.set_layout_engine("none")
+        else:
+            v1 = add_map(axes[0], gt_pm, cmap, size_um, p, UNIT, label_prefix="(a)")
+            v2 = add_map(axes[1], gt2, cmap, size2, p, UNIT, label_prefix="(b)")
+            fig.tight_layout()
+            cbs = (v1[2], v2[2])
+        for name, st, ax_, v, cb_ in (("esm", stem, axes[0], v1, cbs[0]), ("esm_b", stem2, axes[1], v2, cbs[1])):
+            panels.append(dict(name=name, gt="esm", stem=st, cmap=cmap, vmin=v[0], vmax=v[1], unit=UNIT,
+                               bbox=axes_rel_bbox(ax_, fig, p["dpi"]), bar_bbox=axes_rel_bbox(cb_.ax, fig, p["dpi"])))
     else:
         fig, axes = plt.subplots(2, 2, figsize=(6.8, 6.0), dpi=p["dpi"])
-        vmin, vmax, _ = add_map(axes[0, 0], gt_pm, cmap, size_um, p, UNIT, label_prefix="(a)")
-        panels.append(dict(name="esm", gt="esm", cmap=cmap, vmin=vmin, vmax=vmax, unit=UNIT))
-        hvmin, hvmax, _ = add_map(axes[0, 1], height_nm, "gray", size_um, p, "nm", label_prefix="(b)")
-        panels.append(dict(name="topo", gt="height", cmap="gray", vmin=hvmin, vmax=hvmax, unit="nm"))
+        vmin, vmax, cb1, _ = add_map(axes[0, 0], gt_pm, cmap, size_um, p, UNIT, label_prefix="(a)")
+        panels.append(dict(name="esm", gt="esm", stem=stem, cmap=cmap, vmin=vmin, vmax=vmax, unit=UNIT))
+        hvmin, hvmax, cb2, _ = add_map(axes[0, 1], height_nm, "gray", size_um, p, "nm", label_prefix="(b)")
+        panels.append(dict(name="topo", gt="height", stem=stem, cmap="gray", vmin=hvmin, vmax=hvmax, unit="nm"))
         axes[1, 0].hist(gt_pm.ravel(), bins=60, color="#555"); axes[1, 0].set_xlabel("Amplitude (pm)")
         axes[1, 0].set_ylabel("Counts"); axes[1, 0].set_title("(c)", loc="left", fontsize=p["fontsize"])
         axes[1, 1].axis("off")
@@ -159,6 +198,8 @@ def render_case(stem, gt_pm, height_nm, cmap, p, size_um):
         fig.tight_layout()
         panels[0]["bbox"] = axes_rel_bbox(axes[0, 0], fig, p["dpi"])
         panels[1]["bbox"] = axes_rel_bbox(axes[0, 1], fig, p["dpi"])
+        panels[0]["bar_bbox"] = axes_rel_bbox(cb1.ax, fig, p["dpi"])
+        panels[1]["bar_bbox"] = axes_rel_bbox(cb2.ax, fig, p["dpi"])
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=p["dpi"], facecolor="white")
     plt.close(fig)
@@ -204,12 +245,18 @@ def main():
     for vname in args.variants:
         p = {**DEFAULT, **VARIANTS[vname]}
         vdir = args.out / vname; vdir.mkdir(exist_ok=True)
-        cases = [(s, c) for s in scans for c in COLORMAPS] if vname == "default" else \
-                [(s, COLORMAPS[i % 4]) for i, s in enumerate(scans)]
+        if vname == "default":
+            cases = [(s, c, None) for s in scans for c in COLORMAPS]
+        elif p["layout"] in ("pair_shared", "pair_same"):
+            # each scan is paired with the next one (a different scan, often another material)
+            cases = [(s, COLORMAPS[i % 4], scans[(i + 1) % len(scans)]) for i, s in enumerate(scans)]
+        else:
+            cases = [(s, COLORMAPS[i % 4], None) for i, s in enumerate(scans)]
         pdf_pages = []
-        for (stem, gt, h, size_um), cmap in cases:
-            case_id = f"{stem}__{cmap}"
-            png, panels = render_case(stem, gt, h, cmap, p, size_um)
+        for (stem, gt, h, size_um), cmap, sec in cases:
+            case_id = f"{stem}__{cmap}" if sec is None else f"{stem}+{sec[0]}__{cmap}"
+            png, panels = render_case(stem, gt, h, cmap, p, size_um,
+                                      second=None if sec is None else (sec[0], sec[1], sec[3]))
             if p["pdf"]:
                 pdf_pages.append((case_id, png, panels))
                 continue
@@ -218,7 +265,7 @@ def main():
             Image.fromarray(img).save(fpath, quality=95 if ext == "jpg" else None) if ext == "png" \
                 else Image.fromarray(img).save(fpath, quality=100, subsampling=0)
             for pn in panels:
-                pn["gt_file"] = str(gt_dir / f"{stem}__{pn['gt']}.npy")
+                pn["gt_file"] = str(gt_dir / f"{pn.get('stem', stem)}__{pn['gt']}.npy")
             manifest.append(dict(variant=vname, case_id=case_id, scan=stem, material=material_of(stem),
                                  colormap=cmap, image=str(fpath), params=p, panels=panels))
         if p["pdf"] and pdf_pages:
@@ -267,7 +314,7 @@ def main():
                 Image.open(b).save(fpath, quality=100, subsampling=0)
                 stem = case_id.split("__")[0]
                 for pn in panels:
-                    pn["gt_file"] = str(gt_dir / f"{stem}__{pn['gt']}.npy")
+                    pn["gt_file"] = str(gt_dir / f"{pn.get('stem', stem)}__{pn['gt']}.npy")
                     pn["bbox_approx"] = True            # extractor crops the page region
                 manifest.append(dict(variant=vname, case_id=case_id, scan=stem, material=material_of(stem),
                                      colormap=case_id.split("__")[1], image=str(fpath), params=p, panels=panels,

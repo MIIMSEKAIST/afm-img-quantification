@@ -512,17 +512,17 @@
 ```json
 {
   "cielab": {
-    "n_panels_esm": 416,
-    "esm_ok_frac": 0.9255,
-    "esm_ok_frac_excluding_hbar": 0.9872,
-    "esm_ok_scale_err_median_pct": 0.46,
-    "esm_ok_scale_err_p95_pct": 0.718,
-    "esm_ok_nMAE_mean": 2.845,
-    "esm_ok_nMAE_std": 1.063,
-    "esm_ok_nMAE_IQR_mean": 39.662,
-    "esm_ok_median_dev_abs_mean": 0.403,
+    "n_panels_esm": 520,
+    "esm_ok_frac": 0.9385,
+    "esm_ok_frac_excluding_hbar": 0.9879,
+    "esm_ok_scale_err_median_pct": 0.441,
+    "esm_ok_scale_err_p95_pct": 0.709,
+    "esm_ok_nMAE_mean": 2.92,
+    "esm_ok_nMAE_std": 1.148,
+    "esm_ok_nMAE_IQR_mean": 40.223,
+    "esm_ok_median_dev_abs_mean": 0.418,
     "esm_ok_median_dev_abs_max": 4.524,
-    "esm_ok_SSIM_mean": 0.692,
+    "esm_ok_SSIM_mean": 0.684,
     "by_variant": {
       "clip_2_98": {
         "n": 26,
@@ -537,7 +537,8 @@
         "unit_ok": 0.9615,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "default": {
         "n": 104,
@@ -552,7 +553,8 @@
         "unit_ok": 0.8365,
         "status_counts": {
           "ok": 104
-        }
+        },
+        "pairing_correct": 1.0
       },
       "dpi_300": {
         "n": 26,
@@ -567,7 +569,8 @@
         "unit_ok": 0.9615,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "dpi_72": {
         "n": 26,
@@ -583,7 +586,8 @@
         "status_counts": {
           "ok": 23,
           "bar_unreadable": 3
-        }
+        },
+        "pairing_correct": 1.0
       },
       "font_10": {
         "n": 26,
@@ -598,7 +602,8 @@
         "unit_ok": 0.6154,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "hbar": {
         "n": 26,
@@ -615,7 +620,8 @@
           "bar_unreadable": 19,
           "no_compatible_bar": 5,
           "wrong_scale": 2
-        }
+        },
+        "pairing_correct": 1.0
       },
       "jpeg_q60": {
         "n": 26,
@@ -630,7 +636,8 @@
         "unit_ok": 0.7692,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "multipanel": {
         "n": 26,
@@ -646,7 +653,8 @@
         "status_counts": {
           "ok": 24,
           "no_compatible_bar": 2
-        }
+        },
+        "pairing_correct": 1.0
       },
       "no_overlay": {
         "n": 26,
@@ -661,7 +669,41 @@
         "unit_ok": 0.8077,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
+      },
+      "pair_same_cmap": {
+        "n": 52,
+        "detected": 1.0,
+        "bar_read": 1.0,
+        "quantified": 0.9808,
+        "scale_err_median_pct": 0.436,
+        "nMAE_mean": 3.149,
+        "nMAE_IQR_mean": 41.909,
+        "median_dev_abs_mean": 0.439,
+        "SSIM_mean": 0.643,
+        "unit_ok": 0.6863,
+        "status_counts": {
+          "ok": 51,
+          "wrong_scale": 1
+        },
+        "pairing_correct": 0.9808
+      },
+      "pair_shared": {
+        "n": 52,
+        "detected": 1.0,
+        "bar_read": 1.0,
+        "quantified": 1.0,
+        "scale_err_median_pct": 0.319,
+        "nMAE_mean": 3.253,
+        "nMAE_IQR_mean": 42.719,
+        "median_dev_abs_mean": 0.511,
+        "SSIM_mean": 0.664,
+        "unit_ok": 0.8846,
+        "status_counts": {
+          "ok": 52
+        },
+        "pairing_correct": 1.0
       },
       "pdf_extract": {
         "n": 26,
@@ -676,7 +718,8 @@
         "unit_ok": 0.9231,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "png": {
         "n": 26,
@@ -691,7 +734,8 @@
         "unit_ok": 0.8846,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "ticks_2": {
         "n": 26,
@@ -706,7 +750,8 @@
         "unit_ok": 1.0,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "ticks_7": {
         "n": 26,
@@ -721,7 +766,8 @@
         "unit_ok": 0.7692,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       }
     },
     "topo": {
@@ -733,17 +779,17 @@
     }
   },
   "rgb": {
-    "n_panels_esm": 416,
-    "esm_ok_frac": 0.9231,
-    "esm_ok_frac_excluding_hbar": 0.9846,
-    "esm_ok_scale_err_median_pct": 0.462,
-    "esm_ok_scale_err_p95_pct": 0.718,
-    "esm_ok_nMAE_mean": 2.711,
-    "esm_ok_nMAE_std": 1.044,
-    "esm_ok_nMAE_IQR_mean": 37.745,
+    "n_panels_esm": 520,
+    "esm_ok_frac": 0.9365,
+    "esm_ok_frac_excluding_hbar": 0.9858,
+    "esm_ok_scale_err_median_pct": 0.443,
+    "esm_ok_scale_err_p95_pct": 0.709,
+    "esm_ok_nMAE_mean": 2.789,
+    "esm_ok_nMAE_std": 1.132,
+    "esm_ok_nMAE_IQR_mean": 38.347,
     "esm_ok_median_dev_abs_mean": 0.35,
     "esm_ok_median_dev_abs_max": 4.441,
-    "esm_ok_SSIM_mean": 0.712,
+    "esm_ok_SSIM_mean": 0.704,
     "by_variant": {
       "clip_2_98": {
         "n": 26,
@@ -759,7 +805,8 @@
         "status_counts": {
           "ok": 25,
           "low_valid_ratio": 1
-        }
+        },
+        "pairing_correct": 1.0
       },
       "default": {
         "n": 104,
@@ -774,7 +821,8 @@
         "unit_ok": 0.8365,
         "status_counts": {
           "ok": 104
-        }
+        },
+        "pairing_correct": 1.0
       },
       "dpi_300": {
         "n": 26,
@@ -789,7 +837,8 @@
         "unit_ok": 0.9615,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "dpi_72": {
         "n": 26,
@@ -805,7 +854,8 @@
         "status_counts": {
           "ok": 23,
           "bar_unreadable": 3
-        }
+        },
+        "pairing_correct": 1.0
       },
       "font_10": {
         "n": 26,
@@ -820,7 +870,8 @@
         "unit_ok": 0.6154,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "hbar": {
         "n": 26,
@@ -837,7 +888,8 @@
           "bar_unreadable": 19,
           "no_compatible_bar": 5,
           "wrong_scale": 2
-        }
+        },
+        "pairing_correct": 1.0
       },
       "jpeg_q60": {
         "n": 26,
@@ -852,7 +904,8 @@
         "unit_ok": 0.7692,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "multipanel": {
         "n": 26,
@@ -868,7 +921,8 @@
         "status_counts": {
           "ok": 24,
           "no_compatible_bar": 2
-        }
+        },
+        "pairing_correct": 1.0
       },
       "no_overlay": {
         "n": 26,
@@ -883,7 +937,41 @@
         "unit_ok": 0.8077,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
+      },
+      "pair_same_cmap": {
+        "n": 52,
+        "detected": 1.0,
+        "bar_read": 1.0,
+        "quantified": 0.9808,
+        "scale_err_median_pct": 0.436,
+        "nMAE_mean": 3.019,
+        "nMAE_IQR_mean": 40.038,
+        "median_dev_abs_mean": 0.321,
+        "SSIM_mean": 0.661,
+        "unit_ok": 0.6863,
+        "status_counts": {
+          "ok": 51,
+          "wrong_scale": 1
+        },
+        "pairing_correct": 0.9808
+      },
+      "pair_shared": {
+        "n": 52,
+        "detected": 1.0,
+        "bar_read": 1.0,
+        "quantified": 1.0,
+        "scale_err_median_pct": 0.319,
+        "nMAE_mean": 3.142,
+        "nMAE_IQR_mean": 41.127,
+        "median_dev_abs_mean": 0.38,
+        "SSIM_mean": 0.681,
+        "unit_ok": 0.8846,
+        "status_counts": {
+          "ok": 52
+        },
+        "pairing_correct": 1.0
       },
       "pdf_extract": {
         "n": 26,
@@ -898,7 +986,8 @@
         "unit_ok": 0.9231,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "png": {
         "n": 26,
@@ -913,7 +1002,8 @@
         "unit_ok": 0.8846,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "ticks_2": {
         "n": 26,
@@ -928,7 +1018,8 @@
         "unit_ok": 1.0,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       },
       "ticks_7": {
         "n": 26,
@@ -943,7 +1034,8 @@
         "unit_ok": 0.7692,
         "status_counts": {
           "ok": 26
-        }
+        },
+        "pairing_correct": 1.0
       }
     },
     "topo": {

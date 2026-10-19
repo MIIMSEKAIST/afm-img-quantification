@@ -62,6 +62,26 @@ def _best_shift(gt, vm, vmask, max_shift=4):
     return best, best_c
 
 
+def pairing_correct(det_panel, bars, pn, gt_panels, W, H):
+    """True if the colour bar paired with the detected map is the panel's own
+    bar: the paired detected bar is assigned to the nearest true bar (centre
+    distance). None if the manifest has no bar boxes or the map was not paired."""
+    if det_panel.get("bar_idx") is None or "bar_bbox" not in pn:
+        return None
+    bx = bars[det_panel["bar_idx"]]["box"]
+    c = ((bx[0] + bx[2]) / 2, (bx[1] + bx[3]) / 2)
+    true_bars = []
+    for q in gt_panels:
+        b = q.get("bar_bbox")
+        if b is not None:
+            bb = (b[0] * W, b[1] * H, b[2] * W, b[3] * H)
+            if not any(np.allclose(bb, t) for t in true_bars):
+                true_bars.append(bb)
+    nearest = min(true_bars, key=lambda t: ((t[0] + t[2]) / 2 - c[0]) ** 2 + ((t[1] + t[3]) / 2 - c[1]) ** 2)
+    own = (pn["bar_bbox"][0] * W, pn["bar_bbox"][1] * H, pn["bar_bbox"][2] * W, pn["bar_bbox"][3] * H)
+    return bool(np.allclose(nearest, own))
+
+
 def score_panel(gt, value_map, valid, vmin_true, vmax_true, align=True):
     """Resample the reconstruction to the GT grid (and align it by an integer
     shift of up to 4 px) and compute the metrics."""
@@ -163,6 +183,7 @@ def main():
                     rec["status"] = "map_not_detected"
                     rows.append(rec); continue
                 rec["det_status"] = best["status"]
+                rec["pairing_ok"] = pairing_correct(best, res["bars"], pn, m["panels"], W, H)
                 if best["status"] != "ok":
                     rec["status"] = best["status"]
                     rows.append(rec); continue
@@ -197,6 +218,9 @@ def main():
         if len(ok):
             print(ok.groupby(["variant", "panel"])[["nMAE_pct", "nMAE_IQR_pct", "median_dev_pct", "SSIM", "scale_err"]]
                   .agg(["mean"]).round(3).to_string())
+        if "pairing_ok" in d:
+            pr = d.dropna(subset=["pairing_ok"])
+            print("pairing correct (paired panels):", pr.assign(pairing_ok=pr.pairing_ok.astype(float)).groupby("variant").pairing_ok.mean().round(3).to_dict())
     print(f"\nSaved: {args.out}")
 
 
