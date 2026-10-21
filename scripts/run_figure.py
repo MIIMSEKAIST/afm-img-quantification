@@ -21,7 +21,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant.pipeline import FigurePipeline  # noqa: E402
 
-COL = {"map": (0, 200, 0), "bar": (220, 0, 220), "ok": (0, 200, 0), "fail": (0, 0, 230)}
+COL = {"map": (0, 200, 0), "bar": (220, 0, 220), "ok": (0, 200, 0), "fail": (0, 0, 230), "held": (0, 140, 255)}   # held = orange
 
 
 def iter_images(p: Path):
@@ -47,12 +47,12 @@ def draw_overlay(image_rgb, result):
     for i, p in enumerate(result["panels"]):
         x0, y0, x1, y1 = [int(v) for v in p["map_box"]]
         ok = p["status"] == "ok"
-        cv2.rectangle(img, (x0, y0), (x1, y1), COL["ok"] if ok else COL["fail"], 2)
+        colour = COL["ok"] if ok else (COL["held"] if p["status"] == "no_exclusive_bar" else COL["fail"])
+        cv2.rectangle(img, (x0, y0), (x1, y1), colour, 2)
         label = f"#{i} {p['status']}"
         if ok:
             label += f" valid={p['qc']['valid_pixel_ratio']:.2f}"
-        cv2.putText(img, label, (x0 + 3, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.45,
-                    COL["ok"] if ok else COL["fail"], 1, cv2.LINE_AA)
+        cv2.putText(img, label, (x0 + 3, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.45, colour, 1, cv2.LINE_AA)
         if p["bar_idx"] is not None:
             bx0, by0, bx1, by1 = [int(v) for v in result["bars"][p["bar_idx"]]["box"]]
             cv2.line(img, ((x0 + x1) // 2, (y0 + y1) // 2), ((bx0 + bx1) // 2, (by0 + by1) // 2),
