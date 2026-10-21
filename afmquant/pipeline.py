@@ -46,7 +46,8 @@ def merge_boxes(boxes, iou_threshold=0.3):
 class FigurePipeline:
     def __init__(self, weights, conf=0.5, iou_merge=0.3, color_space="cielab",
                  mask_space="cielab", distance_threshold=20.0, margin_trim=0.005,
-                 bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None):
+                 bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None,
+                 pairing_mode="nearest", unit_mode="raw"):
         self.weights = str(weights)
         self.conf = conf
         self.iou_merge = iou_merge
@@ -55,6 +56,8 @@ class FigurePipeline:
         self.margin_trim = margin_trim
         self.bar_pad = bar_pad
         self.min_compat = min_compat
+        self.pairing_mode = pairing_mode          # "nearest" (submitted) | "evidence" (layout or exclusivity required)
+        self.unit_mode = unit_mode                # "raw" (submitted) | "lexicon" (canonical SPM unit or unknown)
         self.ocr = ocr or ColorbarOCR()
         self.device = device
         self._model = None
@@ -95,7 +98,7 @@ class FigurePipeline:
             crop, cbox = self._padded_crop(image_rgb, b["xyxy"])
             x0, y0, x1, y1 = b["xyxy"]
             roi = (x0 - cbox[0], y0 - cbox[1], x1 - cbox[0], y1 - cbox[1])   # detector box in crop coords
-            r = read_colorbar(crop, self.ocr, roi=roi)
+            r = read_colorbar(crop, self.ocr, roi=roi, unit_mode=self.unit_mode)
             r.update({"box": b["xyxy"], "crop_box": cbox, "det_conf": b["conf"]})
             out.append(r)
         return out
@@ -105,8 +108,8 @@ class FigurePipeline:
         maps, bars_det = self.detect(image_rgb)
         bars = self.read_bars(image_rgb, bars_det)
         pairs = pair_maps_to_bars(image_rgb, [m["xyxy"] for m in maps],
-                                  [{"box": b["box"], "strip": b.get("strip")} for b in bars],
-                                  min_compat=self.min_compat)
+                                  [{"box": b["box"], "strip": b.get("strip"), "orientation": b.get("orientation")} for b in bars],
+                                  min_compat=self.min_compat, mode=self.pairing_mode)
         H, W = image_rgb.shape[:2]
         panels = []
         for m, p in zip(maps, pairs):
@@ -115,12 +118,13 @@ class FigurePipeline:
             mx0, my0 = int(max(0, x0 + tx)), int(max(0, y0 + ty))
             mx1, my1 = int(min(W, x1 - tx)), int(min(H, y1 - ty))
             panel = {"map_box": m["xyxy"], "map_conf": m["conf"], "bar_idx": p["bar_idx"],
-                     "compat": p["compat"], "bar_distance": p["distance"],
+                     "compat": p["compat"], "bar_distance": p["distance"], "pairing_evidence": p.get("evidence"),
                      "status": None, "value_map": None, "valid_mask": None, "qc": {}}
             if p["bar_idx"] is None:
                 any_readable = any(b.get("ok") for b in bars)
-                panel["status"] = ("no_compatible_bar" if any_readable else
-                                   ("no_bar_detected" if not bars else "bar_unreadable"))
+                panel["status"] = (p.get("reason") or ("no_compatible_bar" if any_readable else
+                                   ("no_bar_detected" if not bars else "bar_unreadable")))
+                panel["qc"] = {"pairing_evidence": p.get("evidence")}
                 panels.append(panel)
                 continue
             bar = bars[p["bar_idx"]]

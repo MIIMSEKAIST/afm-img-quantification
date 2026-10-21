@@ -83,6 +83,54 @@ _UNIT_TOKEN = r"[A-Za-zµμ°Å/%.²³]{1,10}"
 _RE_NUM_UNIT = re.compile(rf"^\s*({_NUM}(?:\s*(?:[eE]|[x×]\s*10\s*\^?\s*)[-+]?\d+)?)\s*({_UNIT_TOKEN})\s*$")
 
 
+# ---- lexicon-constrained unit recognition (revision R1) -------------------------------
+# On real figures the free-text unit token is often an OCR distortion ("nn" for nN, "uu"/"ym" for
+# µm) or not a unit at all (an axis label such as "t=" or "Time"). In ``unit_mode="lexicon"`` the
+# token is mapped to a canonical SPM unit or reported as unknown; the SI prefix and symbol keep
+# their case (Pa is pressure, pA is current), except for confusions that OCR produces systematically.
+UNIT_LEXICON = {
+    "nm": "length", "µm": "length", "pm": "length", "mm": "length", "Å": "length",
+    "V": "voltage", "mV": "voltage", "µV": "voltage", "kV": "voltage",
+    "A": "current", "nA": "current", "pA": "current", "µA": "current", "mA": "current", "fA": "current",
+    "N": "force", "nN": "force", "pN": "force", "µN": "force", "mN": "force",
+    "Pa": "pressure", "kPa": "pressure", "MPa": "pressure", "GPa": "pressure",
+    "Hz": "frequency", "kHz": "frequency", "MHz": "frequency",
+    "deg": "angle", "°": "angle", "rad": "angle", "mrad": "angle",
+    "eV": "energy", "meV": "energy", "J": "energy", "mJ/m²": "energy density", "J/m²": "energy density",
+    "s": "time", "ms": "time", "µs": "time", "ns": "time", "min": "time",
+    "N/m": "stiffness", "pm/V": "piezoresponse", "nm/V": "piezoresponse", "a.u.": "arbitrary", "%": "fraction",
+    "°C": "temperature", "K": "temperature", "cps": "counts", "counts": "counts",
+    "S": "conductance", "nS": "conductance", "pS": "conductance",
+    "Ω": "resistance", "kΩ": "resistance", "MΩ": "resistance", "GΩ": "resistance", "pF": "capacitance", "fF": "capacitance",
+}
+# case-only variants that OCR produces for a canonical unit (the prefix or symbol case is lost)
+_UNIT_CASE = {"mv": "mV", "kpa": "kPa", "mpa": "MPa", "gpa": "GPa", "khz": "kHz", "mhz": "MHz", "hz": "Hz", "ev": "eV",
+              "mev": "meV", "na": "nA", "ua": "µA", "ma": "mA", "nn": "nN", "pn": "pN", "un": "µN", "uv": "µV", "kv": "kV",
+              "deg": "deg", "um": "µm", "μm": "µm", "ns": "ns", "us": "µs", "ms": "ms"}
+# whole-token confusions observed on the corpus sample (small 'µm' / 'nm' labels)
+_UNIT_CONFUSION = {"uu": "µm", "ym": "µm", "urn": "µm", "mum": "µm", "rm": "nm", "nrn": "nm", "nrm": "nm"}
+
+
+def canonical_unit(token):
+    """Map an OCR unit token to a lexicon unit; None when it is not a recognisable unit."""
+    if token is None:
+        return None
+    t = re.sub(r"\s+", "", str(token).strip().strip("()[]").replace("μ", "µ")).replace("²", "2").replace("^2", "2")
+    if not t:
+        return None
+    lex = {k.replace("²", "2"): k for k in UNIT_LEXICON}
+    if t in lex:
+        return lex[t]
+    if t.lower() in _UNIT_CASE:
+        return _UNIT_CASE[t.lower()]
+    if t.lower() in _UNIT_CONFUSION:
+        return _UNIT_CONFUSION[t.lower()]
+    tail = re.split(r"[,:;()\s]", str(token).strip())[-1] if str(token).strip() else ""
+    if tail and tail != str(token).strip():
+        return canonical_unit(tail)
+    return None
+
+
 def _unit_score(u: str) -> int:
     """2 = known physical unit, 1 = plausible short token, 0 = reject."""
     key = u.strip().lower().replace("²", "2")
@@ -371,7 +419,7 @@ def fit_scale(anchors, scale=1.0, max_rel_residual=0.03):
     return out
 
 
-def read_colorbar(crop_rgb, ocr: ColorbarOCR, n=256, margin_frac=0.01, roi=None):
+def read_colorbar(crop_rgb, ocr: ColorbarOCR, n=256, margin_frac=0.01, roi=None, unit_mode="raw"):
     """Colour-bar crop -> calibration strip ordered vmax->vmin, vmin, vmax.
 
     ``roi`` is the detector's bar box in crop coordinates (optional prior).
@@ -433,7 +481,10 @@ def read_colorbar(crop_rgb, ocr: ColorbarOCR, n=256, margin_frac=0.01, roi=None)
                 anchors, unit, scale = anchors_from_items(items, ex["bbox"], ex["orientation"], crop_shape=shp)
 
     fit = fit_scale(anchors, scale)
-    out = {"ok": bool(fit.get("ok")), "reason": fit.get("reason"), "unit": unit,
+    unit_raw = unit
+    if unit_mode == "lexicon":
+        unit = canonical_unit(unit)                 # canonical SPM unit or None (unknown)
+    out = {"ok": bool(fit.get("ok")), "reason": fit.get("reason"), "unit": unit, "unit_raw": unit_raw,
            "orientation": ex["orientation"], "bbox": ex["bbox"], "fit": fit,
            "ocr_items": [(it["text"], round(it["conf"], 3)) for it in items],
            "strip_quality": ex["quality"], "n_anchors": fit.get("n_anchors", 0)}
