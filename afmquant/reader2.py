@@ -198,7 +198,9 @@ def recover_light_end(crop, bbox, vertical, det_ac, min_gap=0.04, max_step=60.0)
                             new0 = pos
                         else:
                             new1 = pos
-                continue
+                        continue
+                if n_ok == 0:
+                    continue                                                 # the frame sits right at the core end
         gap = (a0 - d0) if end == 0 else (d1 - a1)
         if gap <= min_gap * L:
             continue
@@ -473,9 +475,15 @@ def place_ends(chosen, sa0, sa1, ext_lo, ext_hi, text_h):
         if pre.get("ok"):
             a, b = pre["value_at_start"], pre["value_at_end"] - pre["value_at_start"]
             e0, e1 = new0, new1
+            col = [c for c in chosen if c["kind"] in ("col", "inside") and c["side"] != 0]
+            side_c = (1 if np.mean([c["side"] for c in col]) > 0 else -1) if col else None
+            off_c = float(np.median([c["off"] for c in col])) if col else None
             for c in far:
                 p = (c["ca"] - e0) / Li
                 pred = a + b * p
+                if side_c is not None and (c["side"] != side_c or c["off"] < 0 or abs(c["off"] - off_c) > max(0.5 * th, 3.0)):
+                    c["kind"] = "far"              # not part of the label column: it cannot extend the strip
+                    continue
                 if abs(pred - c["num"]) <= 0.05 * (abs(b) + 1e-12):
                     new0, new1 = min(new0, c["ca"]), max(new1, c["ca"])
                     c["kind"] = "col"
@@ -589,7 +597,7 @@ def _attempt(items, bbox, ext, vertical, det_box, other_bars, map_boxes, core=No
     if side_chosen:
         off_chosen = float(np.median([c["off"] for c in side_chosen]))
         nearer = [c for c in cands if c["side"] != 0 and c["kind"] == "col" and c["off"] < 0.5 * off_chosen and c["off"] <= max_off]
-        if len(nearer) >= 2:
+        if nearer:
             near_skipped = 1 if np.mean([c["side"] for c in nearer]) > 0 else -1
     new0, new1, anchors = place_ends([dict(c) for c in chosen], sa0, sa1, ext[0], ext[1], text_h)
     offsets = [parse_offset(it["text"]) for it in items]
@@ -626,6 +634,15 @@ def _overlap_frac(a, b):
     return iw * ih / area
 
 
+def _strip_in_box(strip, box, vertical, min_along=0.5):
+    """The detector box covers at least ``min_along`` of the strip's length along the bar and overlaps it across."""
+    sa0, sa1, sc0, sc1 = _ac(strip, vertical)
+    ba0, ba1, bc0, bc1 = _ac(box, vertical)
+    along = max(0.0, min(sa1, ba1) - max(sa0, ba0)) / max(1.0, sa1 - sa0)
+    across = min(sc1, bc1) - max(sc0, bc0)
+    return along >= min_along and across > 0
+
+
 def _inside_map(strip, det_box, map_boxes, strip_frac=0.9, det_frac=0.5):
     """The map box that contains the strip (>= strip_frac of its area) while containing less than det_frac of the
     detector box, or None. Such a strip is the edge of the map panel next to the detector box."""
@@ -648,7 +665,7 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
     det_ac = (int(roi[1]), int(roi[3])) if vertical else (int(roi[0]), int(roi[2]))
     bbox, ext_lo, ext_hi = recover_light_end(crop, bbox, vertical, det_ac)
     geom0 = {"core": tuple(int(v) for v in core), "strip_out": tuple(int(v) for v in bbox), "det": tuple(int(v) for v in roi)}
-    if _overlap_frac(bbox, roi) < 0.5:
+    if not _strip_in_box(bbox, roi, vertical):
         return {"ok": False, "reason": "gradient region lies outside the detector box", "bbox": bbox, "orientation": orientation,
                 "fit": None, "ocr_items": [], "touches_border": None, "geom_debug": geom0}
     inside = _inside_map(bbox, roi, map_boxes)
