@@ -80,3 +80,22 @@ def test_map_with_unreadable_own_bar_is_held():
     evid = pair_maps_to_bars(img, maps, bars, mode="evidence")
     assert evid[0]["bar_idx"] is None and evid[0]["reason"] == "own_bar_unreadable" and evid[0]["own_bar_idx"] == 0
     assert evid[1]["bar_idx"] == 1
+
+
+def test_three_label_repair_sign_and_decimal():
+    """+A / 0 / +A (sign lost) and +A.0 / 0 / -10A (decimal lost) are repaired to a range symmetric about zero."""
+    from afmquant.reader2 import _symmetric_sign_repair
+    sign_lost = [(0.0, 80.0, 0.99, 10.0, "end", None, "80.0"), (0.48, 0.0, 0.99, 50.0, "inside", None, "0.00"),
+                 (1.0, 80.0, 0.9, 90.0, "inside", None, "80.0")]
+    rep = _symmetric_sign_repair(sign_lost)
+    assert [a[1] for a in rep] == [80.0, 0.0, -80.0]
+    dec_lost = [(0.0, 13.0, 0.99, 10.0, "end", None, "13.0"), (0.48, 0.0, 0.99, 50.0, "inside", None, "0.00"),
+                (1.0, -130.0, 0.9, 90.0, "inside", None, "-130")]
+    rep = _symmetric_sign_repair(dec_lost)
+    assert [a[1] for a in rep] == [13.0, 0.0, -13.0]
+    consistent = [(0.0, 80.0, 0.99, 10.0, "end", None, "80.0"), (0.48, 0.0, 0.99, 50.0, "inside", None, "0.00"),
+                  (1.0, -80.0, 0.9, 90.0, "inside", None, "-80.0")]
+    assert _symmetric_sign_repair(consistent) is consistent
+    not_centred = [(0.0, 80.0, 0.99, 10.0, "end", None, "80.0"), (0.2, 0.0, 0.99, 50.0, "inside", None, "0.00"),
+                   (1.0, 80.0, 0.9, 90.0, "inside", None, "80.0")]
+    assert _symmetric_sign_repair(not_centred) is not_centred
