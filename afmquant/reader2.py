@@ -460,12 +460,17 @@ def _fit(anchors, scale):
     if not fit.get("ok") and len(anchors) >= 3:
         ends = [a for a in anchors if a[0] in (0.0, 1.0)]
         interior = [a for a in anchors if a[0] not in (0.0, 1.0)]
-        if len(ends) == 2 and ends[0][0] != ends[1][0] and all(a[2] < 0.9 for a in interior):
+        if len(ends) == 2 and ends[0][0] != ends[1][0]:
             fit2 = fit_scale([a[:4] for a in ends], scale)
             if fit2.get("ok"):
-                fit2["reason"] = None
-                fit2["end_labels_only"] = True
-                return fit2
+                # the ends alone are trusted only when every interior label is at least roughly consistent with
+                # them (a label whose position is a little off), not when its value contradicts them (a misread end)
+                v0, v1 = fit2["value_at_start"], fit2["value_at_end"]
+                span = abs(v1 - v0) + 1e-12
+                if all(abs(v0 + (v1 - v0) * a[0] - a[1] * scale) <= 0.15 * span for a in interior):
+                    fit2["reason"] = None
+                    fit2["end_labels_only"] = True
+                    return fit2
     return fit
 
 
