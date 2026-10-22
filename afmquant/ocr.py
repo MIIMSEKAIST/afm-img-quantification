@@ -108,7 +108,7 @@ _UNIT_CASE = {"mv": "mV", "kpa": "kPa", "mpa": "MPa", "gpa": "GPa", "khz": "kHz"
               "mev": "meV", "na": "nA", "ua": "µA", "ma": "mA", "nn": "nN", "pn": "pN", "un": "µN", "uv": "µV", "kv": "kV",
               "deg": "deg", "um": "µm", "μm": "µm", "ns": "ns", "us": "µs", "ms": "ms"}
 # whole-token confusions observed on the corpus sample (small 'µm' / 'nm' labels)
-_UNIT_CONFUSION = {"uu": "µm", "ym": "µm", "urn": "µm", "mum": "µm", "rm": "nm", "nrn": "nm", "nrm": "nm"}
+_UNIT_CONFUSION = {"uu": "µm", "ym": "µm", "urn": "µm", "mum": "µm", "rm": "nm", "nrn": "nm", "nrm": "nm", "my": "mV"}
 
 
 def canonical_unit(token):
@@ -226,11 +226,13 @@ class ColorbarOCR:
             self._engine = RapidOCR()
         return self._engine
 
-    def read(self, crop_rgb):
+    def read(self, crop_rgb, scale=None):
         """OCR on an RGB crop. Returns list of dicts with text, conf, cx, cy
-        (crop pixel coordinates), h and the box."""
+        (crop pixel coordinates), h and the box. ``scale`` overrides the
+        default upscaling (short side >= min_short_side)."""
         h, w = crop_rgb.shape[:2]
-        scale = max(1.0, self.min_short_side / max(1, min(h, w)))
+        if scale is None:
+            scale = max(1.0, self.min_short_side / max(1, min(h, w)))
         img = crop_rgb if scale == 1.0 else cv2.resize(
             crop_rgb, (int(round(w * scale)), int(round(h * scale))), interpolation=cv2.INTER_CUBIC)
         bgr = cv2.cvtColor(np.ascontiguousarray(img), cv2.COLOR_RGB2BGR)

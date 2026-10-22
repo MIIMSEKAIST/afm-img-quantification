@@ -63,3 +63,20 @@ def test_shared_bar_in_a_row_is_kept_in_evidence_mode():
     maps = [(0, 0, 100, 100), (450, 0, 550, 100)]
     evid = pair_maps_to_bars(img, maps, bars, mode="evidence")
     assert [p["bar_idx"] for p in evid] == [0, 0] and evid[0]["evidence"]["row"]
+
+
+def test_map_with_unreadable_own_bar_is_held():
+    """A map whose adjacent bar could not be read is held in evidence mode instead of taking a distant bar."""
+    rng = np.random.default_rng(2)
+    strip = np.stack([np.linspace(0, 255, 64), np.zeros(64), np.linspace(255, 0, 64)], axis=1).astype(np.uint8)
+    img = np.full((100, 700, 3), 255, np.uint8)
+    for x0 in (0, 450):
+        img[:, x0:x0 + 100] = strip[rng.integers(0, 64, size=(100, 100))]
+    bars = [{"box": (110, 0, 125, 100), "strip": None, "orientation": "vertical"},          # own bar of the left map, unreadable
+            {"box": (560, 0, 575, 100), "strip": strip, "orientation": "vertical"}]        # bar of the right map
+    maps = [(0, 0, 100, 100), (450, 0, 550, 100)]
+    near = pair_maps_to_bars(img, maps, bars, mode="nearest")
+    assert near[0]["bar_idx"] == 1                                   # submitted rule: distant readable bar
+    evid = pair_maps_to_bars(img, maps, bars, mode="evidence")
+    assert evid[0]["bar_idx"] is None and evid[0]["reason"] == "own_bar_unreadable" and evid[0]["own_bar_idx"] == 0
+    assert evid[1]["bar_idx"] == 1

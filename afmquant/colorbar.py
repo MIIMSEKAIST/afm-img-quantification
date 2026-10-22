@@ -113,7 +113,7 @@ def _extend_along_axis(diff, bbox, orientation, thr, max_gap=2):
     return (lo, y0, hi, y1)
 
 
-def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, roi_margin=0.15):
+def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, roi_margin=0.15, extend=True):
     """Return ``((x0, y0, x1, y1), orientation)`` of the gradient strip inside a
     colour-bar crop, or ``None`` if no solid region is found.
 
@@ -184,7 +184,9 @@ def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, ro
                     larger = fh > 1.5 * (y1 - y0) + 6 and fw > 0.5 * (x1 - x0)
                 if clipped and larger:
                     continue
-        bbox = _extend_along_axis(diff, (x0, y0, x1, y1), orientation, thr=fg_threshold * 0.5)
+        bbox = (x0, y0, x1, y1)
+        if extend:
+            bbox = _extend_along_axis(diff, bbox, orientation, thr=fg_threshold * 0.5)
         return bbox, orientation
     return None
 

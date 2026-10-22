@@ -98,6 +98,14 @@ def pair_maps_to_bars(image_rgb, map_boxes, bars, min_compat=0.5, tie_margin=0.1
                     "distance": None if best is None else best[2],
                     "candidates": [{"bar_idx": b, "compat": c, "distance": d} for b, c, d in cands]})
     if mode == "evidence":
+        # a map laid out with an unreadable bar of its own is held: its values cannot be taken from another bar
+        unreadable = [k for k, bar in enumerate(bars) if bar.get("strip") is None]
+        for o, mb in zip(out, map_boxes):
+            own_unread = [k for k in unreadable if layout_evidence(mb, bars[k]["box"], bars[k].get("orientation"), min_overlap, layout_gap)]
+            if own_unread and not (o["bar_idx"] is not None and
+                                   layout_evidence(mb, bars[o["bar_idx"]]["box"], bars[o["bar_idx"]].get("orientation"), min_overlap, layout_gap)):
+                o.update({"bar_idx": None, "reason": "own_bar_unreadable", "own_bar_idx": own_unread[0],
+                          "evidence": {"layout": False, "exclusive": False, "row": False, "own_unreadable": True}})
         chosen = [o["bar_idx"] for o in out]
         # owners: maps for which a bar is laid out as their own bar
         owners = {}

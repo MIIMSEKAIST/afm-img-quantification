@@ -47,7 +47,7 @@ class FigurePipeline:
     def __init__(self, weights, conf=0.5, iou_merge=0.3, color_space="cielab",
                  mask_space="cielab", distance_threshold=20.0, margin_trim=0.005,
                  bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None,
-                 pairing_mode="nearest", unit_mode="raw"):
+                 pairing_mode="nearest", unit_mode="raw", reader="v1"):
         self.weights = str(weights)
         self.conf = conf
         self.iou_merge = iou_merge
@@ -58,6 +58,7 @@ class FigurePipeline:
         self.min_compat = min_compat
         self.pairing_mode = pairing_mode          # "nearest" (submitted) | "evidence" (layout or exclusivity required)
         self.unit_mode = unit_mode                # "raw" (submitted) | "lexicon" (canonical SPM unit or unknown)
+        self.reader = reader                      # "v1" (submitted) | "v2" (label-column reader, revision R1)
         self.ocr = ocr or ColorbarOCR()
         self.device = device
         self._model = None
@@ -92,7 +93,10 @@ class FigurePipeline:
         x1, y1 = int(min(W, x1 + pad)), int(min(H, y1 + pad))
         return image_rgb[y0:y1, x0:x1], (x0, y0, x1, y1)
 
-    def read_bars(self, image_rgb, bar_boxes):
+    def read_bars(self, image_rgb, bar_boxes, maps=None):
+        if self.reader == "v2":
+            from .reader2 import read_bars_v2
+            return read_bars_v2(self, image_rgb, bar_boxes, maps or [])
         out = []
         for b in bar_boxes:
             crop, cbox = self._padded_crop(image_rgb, b["xyxy"])
@@ -106,7 +110,7 @@ class FigurePipeline:
     # ------------------------------------------------------------------- process
     def process(self, image_rgb, figure_id=None):
         maps, bars_det = self.detect(image_rgb)
-        bars = self.read_bars(image_rgb, bars_det)
+        bars = self.read_bars(image_rgb, bars_det, maps=maps)
         pairs = pair_maps_to_bars(image_rgb, [m["xyxy"] for m in maps],
                                   [{"box": b["box"], "strip": b.get("strip"), "orientation": b.get("orientation")} for b in bars],
                                   min_compat=self.min_compat, mode=self.pairing_mode)

@@ -47,7 +47,7 @@ def draw_overlay(image_rgb, result):
     for i, p in enumerate(result["panels"]):
         x0, y0, x1, y1 = [int(v) for v in p["map_box"]]
         ok = p["status"] == "ok"
-        colour = COL["ok"] if ok else (COL["held"] if p["status"] == "no_exclusive_bar" else COL["fail"])
+        colour = COL["ok"] if ok else (COL["held"] if p["status"] in ("no_exclusive_bar", "own_bar_unreadable") else COL["fail"])
         cv2.rectangle(img, (x0, y0), (x1, y1), colour, 2)
         label = f"#{i} {p['status']}"
         if ok:

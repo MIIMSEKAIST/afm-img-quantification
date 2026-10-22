@@ -123,6 +123,8 @@ def main():
     ap.add_argument("--variants", nargs="*", default=None)
     ap.add_argument("--overlay-dir", type=Path, default=None)
     ap.add_argument("--pairing-mode", default="nearest", choices=["nearest", "evidence"])
+    ap.add_argument("--reader", default="v1", choices=["v1", "v2"])
+    ap.add_argument("--unit-mode", default="raw", choices=["raw", "lexicon"])
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -131,7 +133,8 @@ def main():
         manifest = [m for m in manifest if m["variant"] in args.variants]
     ocr = ColorbarOCR()
     # detection + colour-bar reading are done once; only the lookup is repeated per colour space
-    pipe0 = FigurePipeline(args.weights, color_space=args.color_spaces[0], ocr=ocr, pairing_mode=args.pairing_mode)
+    pipe0 = FigurePipeline(args.weights, color_space=args.color_spaces[0], ocr=ocr, pairing_mode=args.pairing_mode,
+                           reader=args.reader, unit_mode=args.unit_mode)
     from afmquant.engine import quantify_map  # noqa: E402
     if args.overlay_dir:
         args.overlay_dir.mkdir(parents=True, exist_ok=True)

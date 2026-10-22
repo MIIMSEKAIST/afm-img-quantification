@@ -835,6 +835,9 @@ def main():
     ap.add_argument("--dpi", type=int, default=150, help="figure rasterisation dpi (corpus: 150)")
     ap.add_argument("--conf", type=float, default=0.5, help="detector confidence (pipeline default)")
     ap.add_argument("--color-space", default="cielab", choices=["cielab", "rgb"])
+    ap.add_argument("--reader", default="v1", choices=["v1", "v2"])
+    ap.add_argument("--unit-mode", default="raw", choices=["raw", "lexicon"])
+    ap.add_argument("--pairing-mode", default="nearest", choices=["nearest", "evidence"])
     ap.add_argument("--no-crop-search", action="store_true", help="match full scans only")
     ap.add_argument("--ambiguous-margin", type=float, default=0.05,
                     help="score margin to the best other FILE below which a match is flagged ambiguous")
@@ -864,7 +867,8 @@ def main():
     params = tm.MatchParams(ambiguous_margin=args.ambiguous_margin, channel_margin=args.channel_margin)
     if args.no_crop_search:
         params.crop_trigger, params.crop_skip_contrast = -1.0, -1.0
-    pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space, ocr=ColorbarOCR())
+    pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space, ocr=ColorbarOCR(),
+                          reader=args.reader, unit_mode=args.unit_mode, pairing_mode=args.pairing_mode)
     all_rows, all_details, infos = [], [], {}
     for paper, src in papers.items():
         log(f"\n=== {paper} ({src.name}) ===")
