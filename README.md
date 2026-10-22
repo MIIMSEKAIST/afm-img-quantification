@@ -17,15 +17,19 @@ lookup. Every stage is validated against ground truth:
 | validation | what is measured | result (release v1.1.0) |
 |---|---|---|
 | **Engine benchmark** (26 ESM scans × 4 colormaps, JPEG q85) | lookup only, exact scale given | nMAE **2.09 ± 0.76 %** of range, SSIM 0.81, scan median within 0.46 % |
-| **Colour-bar reading** (300 synthetic colour bars) | OCR + scale fit | scale read in 99 %, both end values within 2 % in **≈97 %** (median end error 0.5 %) |
-| **Realistic figures** (468 complete figures, 15 rendering variants) | detector → OCR → pairing → lookup | default variant: 100 % of panels quantified, scale error 0.4 %, scan median within 0.35 %, nMAE **2.7 %** |
-| **Detector** (held-out test figures) | map / colour-bar boxes | mAP@50 0.98 (mAP@50–95 0.91) |
+| **Colour-bar reading** (300 synthetic colour bars) | OCR + scale fit | scale read in 99.3 %, both end values within 2 % in **98.3 %** (median end error 0.20 %) |
+| **Realistic figures** (468 complete figures, 15 rendering variants) | detector → OCR → pairing → lookup | default variant: 100 % of panels quantified, scale error 0.40 %, scan median within 0.36 %, nMAE **2.8 %** |
+| **Detector** (hand-labelled test split; verified corpus figures) | map / colour-bar boxes | test split mAP@50 0.96 (submitted detector 0.98); on 711 verified corpus figures not used for training, the released detector finds 197 colour bars against 146 for the submitted one and returns the exact number of map panels in 51 figures against 26; false boxes on 4.3 % of the map-free figures (manuscript Section 2.1) |
 
-Known limitations: horizontal colour bars are not detected by the released
-detector (0 of 26 in the realistic-figure benchmark); only linear colour scales
-with at least two legible numeric labels are read (logarithmic scales are
-flagged and skipped); the detector recognises colour-mapped panels of any
-technique, so AFM specificity comes from the caption / unit filter.
+Known limitations: horizontal colour bars are rarely quantified by the released pipeline (4 of 26 in the realistic-figure benchmark); only linear colour scales with at least two legible
+numeric labels are read (logarithmic scales are flagged and skipped); a panel whose
+colour bar cannot be identified from the figure layout, or whose own colour bar is
+not readable, is withheld rather than quantified with a neighbour's bar (status
+`no_exclusive_bar` / `own_bar_unreadable`); the detector recognises colour-mapped
+panels of any technique, so AFM specificity comes from the caption / unit filter.
+The accuracy of the pipeline on real literature figures (human verification of two
+1,000-figure samples, before and after the revision) is reported in the manuscript
+(Section 2.8) and reproduced by `scripts/corpus/`.
 
 ---
 
@@ -35,8 +39,9 @@ technique, so AFM specificity comes from the caption / unit filter.
 afmquant/            importable package
   engine.py            colour-bar-guided nearest-colour lookup (CIELAB or sRGB matching, ΔE validity mask)
   colorbar.py          colour-bar crop -> gradient region -> 256-sample calibration strip
-  ocr.py               tick-label OCR (RapidOCR / PP-OCRv4), label parsing, scale fitting (consensus, log detection)
-  pairing.py           map <-> colour-bar pairing by gamut compatibility and proximity
+  ocr.py               tick-label OCR (RapidOCR / PP-OCRv4), label parsing, unit lexicon, scale fitting (submitted reader)
+  reader2.py           label-column colour-bar reader (released): geometry-based label selection, verified strip ends, repairs
+  pairing.py           map <-> colour-bar pairing by gamut compatibility and layout evidence (ambiguous panels are held)
   pipeline.py          FigurePipeline: whole figure -> detected panels -> value maps + QC record
   afm_filter.py        caption / unit based technique filter (AFM vs other colour-mapped techniques)
   render.py            publication-style rendering of ground-truth matrices (benchmark generation)
@@ -55,6 +60,8 @@ detection/           YOLO11m detector: train.py, evaluate.py, detect.py, data.ya
 analysis/            scan-level statistics and meta-analysis (rankings, Cliff's delta, Mann–Whitney)
 figures/             manuscript figure parts
 scripts/run_figure.py   command-line pipeline for a figure or a folder (JSON + overlay output)
+scripts/corpus/      corpus-sample evaluations: held-out sample runs, human-verification workbooks, reader / pairing
+                     evaluations, detector training set v2 and fine-tuning, held-out detector comparison (see its README)
 collection/          literature collection pipeline (code only; see copyright note)
 tests/               unit tests (python -m pytest tests)
 data/                ground-truth scans (via Zenodo) and data provenance
@@ -102,7 +109,11 @@ python scripts/run_figure.py figure.png --weights detection/weights/afm_detect_b
 ```
 
 writes `out/figure.json` (detected boxes, read scale and unit, pairing, QC
-record and the value map of each quantified panel) and an overlay PNG.
+record and the value map of each quantified panel) and an overlay PNG. The
+defaults are the released configuration (fine-tuned detector at confidence 0.25,
+label-column colour-bar reader, lexicon-constrained units, evidence-based pairing);
+`--weights detection/weights/afm_detect_v13.pt --conf 0.5 --reader v1 --unit-mode raw --pairing-mode nearest`
+reproduces the submitted version.
 From Python:
 
 ```python
@@ -129,8 +140,13 @@ of the paper); the ΔE validity mask is always evaluated in CIELAB.
 - **Ground-truth ESM scans** (26 IBW files), the rendered benchmark images, the
   per-case metrics, the realistic-figure benchmark figures and the detection
   test-set annotations are archived on Zenodo (see `data/README.md`). Not stored in git.
-- **Detector weights** (`afm_detect_best.pt`, YOLO11m; training configuration in
-  `detection/README.md`) are attached to the GitHub Release. Not stored in git.
+- **Detector weights** (`afm_detect_best.pt` = released detector v15, `afm_detect_v13.pt` =
+  submitted detector; YOLO11m, training configuration in `detection/README.md`) are
+  attached to the GitHub Release. Not stored in git.
+- **Corpus-sample verification** (sample manifests with DOIs, pipeline results, the
+  human-verification workbooks of both samples, the colour-bar truth table and the
+  labels added to detector training set v2) is part of the Zenodo deposit; the figure
+  images are copyrighted and not redistributed (see `scripts/corpus/README.md`).
 
 ## ⚠️ Note on copyright (literature corpus)
 

@@ -11,7 +11,7 @@ Usage
     python reproduce_all.py --ibw-dir data/esm_ibw --weights detection/weights/afm_detect_best.pt \
         --data path/to/afm_detection/data.yaml                 # + detector metrics and the realistic-figure
                                                                #   (Tier 2) benchmark (~40 min, GPU recommended)
-    python reproduce_all.py --skip tier2_render tier2_eval detection   # skip the slow / data-dependent steps
+    python reproduce_all.py --skip tier2_render tier2_eval detection detection_submitted   # skip the slow / data-dependent steps
 """
 from __future__ import annotations
 
@@ -43,13 +43,21 @@ STEPS = [  # (key, command)
     # --- stages added in revision R1 (colour-bar reading, detection, end-to-end) ---
     ("ocr", ["benchmark/ocr_synthetic_test.py", "--n", "300", "--out", "results/ocr_synthetic_test.csv"]),
     ("detection", ["detection/evaluate.py", "--out", "results/detection_eval.json"]),
+    ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
+                             "--out", "results/detection_eval_v13.json"]),
+    ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
+                             "--out", "results/detection_eval_v13.json"]),
+    ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
+                             "--out", "results/detection_eval_v13.json"]),
+    ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
+                             "--out", "results/detection_eval_v13.json"]),
     ("tier2_render", ["benchmark/tier2_render.py", "--out", "runs/tier2"]),
     ("tier2_eval", ["benchmark/tier2_evaluate.py", "--manifest", "runs/tier2/manifest.json",
                     "--out", "results/tier2_results.csv"]),
 ]
 NEEDS_IBW = {"benchmark", "scanlevel", "diffusivity", "robustness", "subsampling", "baseline", "tier2_render"}
 NEEDS_WEIGHTS = {"detection", "tier2_eval"}      # detector weights (released with v1.1.0)
-NEEDS_DATA = {"detection"}                        # labelled detection dataset (Zenodo deposit)
+NEEDS_DATA = {"detection", "detection_submitted"}                        # labelled detection dataset (Zenodo deposit)
 NEEDS_PDFF = {"tier2_render"}                     # pdffigures2 jar (optional; PyMuPDF fallback)
 
 
@@ -188,6 +196,14 @@ def build_manifest():
 
     if (R / "detection_eval.json").exists():
         M["detection"] = json.loads((R / "detection_eval.json").read_text(encoding="utf-8")).get("splits")
+    if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
+        M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
+    if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
+        M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
+    if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
+        M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
+    if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
+        M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
 
     if (R / "tier2_results.csv").exists():
         t = pd.read_csv(R / "tier2_results.csv")

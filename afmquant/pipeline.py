@@ -6,6 +6,41 @@ revised manuscript (Tier 2 synthetic figures and Tier 3 published figures).
 Detection uses the released YOLO11m map/colour-bar detector; everything after
 detection is deterministic.
 
+The defaults are the released configuration of the revised manuscript: the
+fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
+reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
+and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
+configuration of the submitted manuscript is reproduced with the v13 weights
+and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
+
+The defaults are the released configuration of the revised manuscript: the
+fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
+reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
+and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
+configuration of the submitted manuscript is reproduced with the v13 weights
+and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
+
+The defaults are the released configuration of the revised manuscript: the
+fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
+reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
+and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
+configuration of the submitted manuscript is reproduced with the v13 weights
+and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
+
+The defaults are the released configuration of the revised manuscript: the
+fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
+reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
+and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
+configuration of the submitted manuscript is reproduced with the v13 weights
+and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
+
+The defaults are the released configuration of the revised manuscript: the
+fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
+reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
+and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
+configuration of the submitted manuscript is reproduced with the v13 weights
+and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
+
     from afmquant.pipeline import FigurePipeline
     pipe = FigurePipeline("detection/weights/afm_detect_best.pt")
     result = pipe.process(image_rgb)
@@ -44,10 +79,10 @@ def merge_boxes(boxes, iou_threshold=0.3):
 
 
 class FigurePipeline:
-    def __init__(self, weights, conf=0.5, iou_merge=0.3, color_space="cielab",
+    def __init__(self, weights, conf=0.25, iou_merge=0.3, color_space="cielab",
                  mask_space="cielab", distance_threshold=20.0, margin_trim=0.005,
                  bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None,
-                 pairing_mode="nearest", unit_mode="raw", reader="v1"):
+                 pairing_mode="evidence", unit_mode="lexicon", reader="v2"):
         self.weights = str(weights)
         self.conf = conf
         self.iou_merge = iou_merge

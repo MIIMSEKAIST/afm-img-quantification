@@ -3,6 +3,22 @@
 ## v1.1.0 — revision R1 (2026-10)
 
 Added
+- `afmquant/reader2.py`: label-column colour-bar reader (`reader="v2"`, the default): tick labels are
+  selected by their geometry (the column of numbers beside the strip, numbers inside maps or nearer to
+  another bar discarded), the strip ends are verified against the label positions and light ends are
+  recovered, and a lost sign or decimal point on a three-label bar is repaired from linearity.
+- `afmquant/pairing.py`: evidence-based pairing (`pairing_mode="evidence"`, the default): a map is paired
+  only with a colour bar that the figure layout assigns to it (exclusive, row or column evidence); otherwise
+  the panel is held (`no_exclusive_bar`, `own_bar_unreadable`) instead of being quantified with a
+  neighbour's bar. `afmquant/ocr.py`: lexicon-constrained units (`unit_mode="lexicon"`, the default).
+- Released detector v15: the submitted detector fine-tuned on the human-verified corpus figures (dataset v2 =
+  original labels + 91 verified positives + 198 map-free negatives), applied at confidence 0.25.
+- `scripts/corpus/`: corpus-sample evaluations (held-out sample runs, verification workbooks, reader and
+  pairing evaluations on verified figures, dataset v2, fine-tuning, held-out detector comparison);
+  `data/corpus_sample/bar_truth.csv`.
+- `--conf`, `--reader`, `--unit-mode`, `--pairing-mode` on `scripts/run_figure.py`, `benchmark/tier2_evaluate.py`
+  and `benchmark/tier3_evaluate.py`; `--reader` on `benchmark/ocr_synthetic_test.py`.
+- `results/detection_eval_v13.json` (submitted detector) next to `results/detection_eval.json` (released).
 - `afmquant/colorbar.py`, `afmquant/ocr.py`, `afmquant/pairing.py`, `afmquant/pipeline.py`:
   colour-bar strip extraction, tick-label OCR (RapidOCR / PP-OCRv4) and scale fitting,
   map–colour-bar pairing and the end-to-end `FigurePipeline` (these stages were described
@@ -22,9 +38,12 @@ Added
   shows, Tier 2 metrics); `benchmark/tier3_selftest.py`: synthetic self-test of that tool.
 - `reproduce_all.py`: one command regenerates every number of the manuscript
   (`results/numbers_manifest.json`).
-- `tests/`: 42 unit tests; `requirements.lock`: exact versions.
+- `tests/`: 49 unit tests; `requirements.lock`: exact versions.
 
 Changed
+- Defaults of `FigurePipeline` and of every script are the released configuration (detector v15 at
+  confidence 0.25, reader v2, lexicon units, evidence pairing); the submitted configuration is
+  `conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"` with `afm_detect_v13.pt`.
 - `afmquant/engine.py`: `color_space` ("cielab" | "rgb"), `interpolate` and `mask_space`
   options; the validity mask is always a CIELAB ΔE.
 - `afmquant/metrics.py`: additional metrics (nMAE/IQR, nMAE/SD, signed mean / SD error,

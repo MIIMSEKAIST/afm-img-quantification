@@ -93,7 +93,7 @@ def main():
     ap.add_argument("--tol", type=float, default=0.02)
     ap.add_argument("--out", type=Path, default=Path("results/ocr_synthetic_test.csv"))
     ap.add_argument("--dump-fail", type=Path, default=None, help="dir to save failed images")
-    ap.add_argument("--reader", default="v1", choices=["v1", "v2"], help="submitted reader or the label-column reader")
+    ap.add_argument("--reader", default="v2", choices=["v1", "v2"], help="label-column reader (v2) or the submitted reader (v1)")
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     if args.dump_fail:

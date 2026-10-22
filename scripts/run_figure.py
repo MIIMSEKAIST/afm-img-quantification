@@ -65,13 +65,17 @@ def main():
     ap.add_argument("--images", type=Path, required=True)
     ap.add_argument("--weights", type=Path, default=Path("detection/weights/afm_detect_best.pt"))
     ap.add_argument("--out", type=Path, default=Path("out/pipeline"))
-    ap.add_argument("--conf", type=float, default=0.5)
+    ap.add_argument("--conf", type=float, default=0.25, help="detector confidence (0.5 in the submitted version)")
     ap.add_argument("--color-space", default="cielab", choices=["cielab", "rgb"])
+    ap.add_argument("--reader", default="v2", choices=["v1", "v2"], help="colour-bar reader (v1 = submitted version)")
+    ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
+    ap.add_argument("--pairing-mode", default="evidence", choices=["nearest", "evidence"])
     ap.add_argument("--no-npz", action="store_true")
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
-    pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space)
+    pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space, reader=args.reader,
+                          unit_mode=args.unit_mode, pairing_mode=args.pairing_mode)
     summary = []
     for img_path in iter_images(args.images):
         image = np.array(Image.open(img_path).convert("RGB"))

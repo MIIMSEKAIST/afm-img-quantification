@@ -80,7 +80,7 @@ from benchmark import tier3_match as tm  # noqa: E402
 ROOT = Path("D:/AFM_Database_SH")
 DEFAULTS = dict(pdfs=ROOT / "revision/tier3/pdfs", raw=ROOT / "revision/tier3/raw",
                 hints=ROOT / "revision/tier3/collection_template.csv", out=ROOT / "revision/tier3/results",
-                weights=ROOT / "runs/detect/runs/afm_detect/v13/weights/best.pt",
+                weights=ROOT / "runs/detect/runs/afm_detect/v15/weights/best.pt",
                 pdffigures2=ROOT / "tools/pdffigures2/pdffigures2.jar")
 IMG_EXT = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp")
 NL = chr(10)
@@ -835,11 +835,11 @@ def main():
     ap.add_argument("--pdffigures2", type=Path, default=DEFAULTS["pdffigures2"])
     ap.add_argument("--java", default="java")
     ap.add_argument("--dpi", type=int, default=150, help="figure rasterisation dpi (corpus: 150)")
-    ap.add_argument("--conf", type=float, default=0.5, help="detector confidence (pipeline default)")
+    ap.add_argument("--conf", type=float, default=0.25, help="detector confidence (pipeline default)")
     ap.add_argument("--color-space", default="cielab", choices=["cielab", "rgb"])
-    ap.add_argument("--reader", default="v1", choices=["v1", "v2"])
-    ap.add_argument("--unit-mode", default="raw", choices=["raw", "lexicon"])
-    ap.add_argument("--pairing-mode", default="nearest", choices=["nearest", "evidence"])
+    ap.add_argument("--reader", default="v2", choices=["v1", "v2"])
+    ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
+    ap.add_argument("--pairing-mode", default="evidence", choices=["nearest", "evidence"])
     ap.add_argument("--no-crop-search", action="store_true", help="match full scans only")
     ap.add_argument("--ambiguous-margin", type=float, default=0.05,
                     help="score margin to the best other FILE below which a match is flagged ambiguous")
