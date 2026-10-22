@@ -412,15 +412,55 @@ def place_ends(chosen, sa0, sa1, ext_lo, ext_hi, text_h):
             p = float(np.clip((c["ca"] - new0) / Ln, 0.0, 1.0))
         else:
             p = (c["ca"] - new0) / Ln
-        anchors.append((p, float(c["num"]), float(c["conf"]), float(c["ca"]), c["kind"], c.get("unit_tag")))
+        anchors.append((p, float(c["num"]), float(c["conf"]), float(c["ca"]), c["kind"], c.get("unit_tag"), c.get("text", "")))
     return new0, new1, anchors
+
+
+def _symmetric_sign_repair(anchors):
+    """Three labels with ~0 in the middle of the bar (AFM software labels a range symmetric about zero as
+    +A / 0 / -A): linearity forces the two end magnitudes to be equal. When they are equal but have the same
+    sign, the sign of one end was lost by the OCR; when they differ by a factor of 10 or 100, one end lost its
+    decimal point. The label written with a decimal point is trusted and the other end is set to minus it."""
+    if len(anchors) != 3:
+        return anchors
+    top, mid, bot = sorted(anchors, key=lambda a: a[0])
+    A = max(abs(top[1]), abs(bot[1]), 1e-12)
+    if not (abs(mid[1]) <= 0.02 * A and top[0] <= 0.1 and bot[0] >= 0.9 and 0.35 <= mid[0] <= 0.65 and top[1] != 0 and bot[1] != 0):
+        return anchors
+
+    def with_value(a, v):
+        return (a[0], float(v)) + tuple(a[2:])
+
+    mt, mb = abs(top[1]), abs(bot[1])
+    if abs(mt - mb) <= 0.02 * A:
+        if np.sign(top[1]) == np.sign(bot[1]):                       # sign lost on one end: the end farther from 0 keeps its sign
+            if top[1] > 0:
+                return [top, mid, with_value(bot, -mb)]
+            return [with_value(top, mt), mid, bot]
+        return anchors
+    ratio = max(mt, mb) / min(mt, mb)
+    if abs(ratio - 10) <= 0.5 or abs(ratio - 100) <= 5:            # decimal point lost on one end
+        t_dec, b_dec = "." in str(top[6] if len(top) > 6 else ""), "." in str(bot[6] if len(bot) > 6 else "")
+        if t_dec and not b_dec:
+            return [top, mid, with_value(bot, -abs(top[1]) * (1 if top[1] > 0 else -1))]
+        if b_dec and not t_dec:
+            return [with_value(top, -abs(bot[1]) * (1 if bot[1] > 0 else -1)), mid, bot]
+    return anchors
 
 
 def _fit(anchors, scale):
     fit = fit_scale([a[:4] for a in anchors], scale)
+    if not fit.get("ok") and len(anchors) == 3:
+        rep = _symmetric_sign_repair(anchors)
+        if rep is not anchors:
+            fit3 = fit_scale([a[:4] for a in rep], scale)
+            if fit3.get("ok"):
+                fit3["sign_repaired"] = True
+                return fit3
     if not fit.get("ok") and len(anchors) >= 3:
         ends = [a for a in anchors if a[0] in (0.0, 1.0)]
-        if len(ends) == 2 and ends[0][0] != ends[1][0]:
+        interior = [a for a in anchors if a[0] not in (0.0, 1.0)]
+        if len(ends) == 2 and ends[0][0] != ends[1][0] and all(a[2] < 0.9 for a in interior):
             fit2 = fit_scale([a[:4] for a in ends], scale)
             if fit2.get("ok"):
                 fit2["reason"] = None
@@ -484,7 +524,8 @@ def _attempt(items, bbox, ext, vertical, det_box, other_bars, map_boxes, core=No
 
 def _score(att):
     f = att["fit"]
-    return (1 if f.get("ok") else 0, 0 if att.get("near_skipped") else 1, int(f.get("n_inliers", 0) or 0), len(att["anchors"]))
+    return (1 if f.get("ok") else 0, 0 if att.get("near_skipped") else 1, 0 if (f.get("end_labels_only") or f.get("sign_repaired")) else 1,
+            int(f.get("n_inliers", 0) or 0), len(att["anchors"]))
 
 
 def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit_mode="raw"):
@@ -525,8 +566,8 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
     attempts = [_attempt(items1, bbox, (ext_lo, ext_hi), *ctx)]
     best = attempts[0]
     f1 = best["fit"]
-    clean = (f1.get("ok") and not best["near_skipped"] and
-             (int(f1.get("n_inliers", 0) or 0) == len(best["anchors"]) >= 2 or f1.get("end_labels_only")))
+    clean = (f1.get("ok") and not best["near_skipped"] and not f1.get("sign_repaired") and not f1.get("end_labels_only") and
+             int(f1.get("n_inliers", 0) or 0) == len(best["anchors"]) >= 2)
     if not clean:
         # pass 2: the crop at a larger scale when the labels are small
         h_med = best["text_h"] if best["cands"] else 0.0
