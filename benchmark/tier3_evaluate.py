@@ -642,6 +642,8 @@ def evaluate_paper(paper, pdf_or_dir, args, pipe, params, hints):
                    "panel_idx": i, "panel_pos": pos[i], "map_box": _fmt_box(p["map_box"]), "status": p["status"],
                    "bar_idx": p.get("bar_idx"), "bar_orientation": q.get("bar_orientation"),
                    "vmin_read": q.get("vmin"), "vmax_read": q.get("vmax"), "unit_read": q.get("unit"),
+                   "scale_repaired": bool(((bar or {}).get("fit") or {}).get("sign_repaired")),
+                   "scale_fallback": bool(((bar or {}).get("fit") or {}).get("end_labels_only")),
                    "valid_pixel_ratio": q.get("valid_pixel_ratio"), "n_anchors": q.get("n_anchors"),
                    "bar_reason": None if bar is None or bar.get("ok") else bar.get("reason"),
                    "hint_raw_file": "; ".join(h.get("raw_file", "") for h in fig_hints if h.get("raw_file")),
@@ -771,7 +773,7 @@ METRICS = ["nMAE_pct", "nMAE_IQR_pct", "abs_median_dev_range_pct", "SSIM", "pear
 CSV_ORDER = [
     # panel and pipeline result
     "paper_key", "figure", "page", "panel_pos", "panel_idx", "status", "match_status", "flags",
-    "vmin_read", "vmax_read", "unit_read", "valid_pixel_ratio", "n_anchors", "bar_orientation", "bar_reason",
+    "vmin_read", "vmax_read", "unit_read", "scale_repaired", "scale_fallback", "valid_pixel_ratio", "n_anchors", "bar_orientation", "bar_reason",
     # match
     "match_file", "match_channel", "match_variant", "match_orientation", "match_orientation_desc", "match_fov",
     "crop_box", "crop_frac", "raw_shape", "match_score", "match_contrast", "match_null", "match_r_plain",
