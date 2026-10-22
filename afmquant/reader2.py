@@ -40,7 +40,7 @@ import numpy as np
 from colorspacious import cspace_convert
 
 from .colorbar import find_gradient_region, _extend_along_axis, _background_and_diff, sample_strip, strip_quality
-from .ocr import (parse_number_unit, parse_offset, parse_unit, fit_scale, canonical_unit, _unit_score,
+from .ocr import (_normalize, parse_number_unit, parse_offset, parse_unit, fit_scale, canonical_unit, _unit_score,
                   split_merged_decimals)
 
 _GLUE_O = re.compile(r"^(-?)[OoDQ](?=[.,]\d|\s*[A-Za-zµμ°%])")     # 'Onm' -> '0nm', 'O.5' -> '0.5'
@@ -161,16 +161,46 @@ def recover_light_end(crop, bbox, vertical, det_ac, min_gap=0.04, max_step=60.0)
     typ = float(np.median((np.percentile(rows, 95, axis=1) - np.percentile(rows, 5, axis=1)).max(axis=1)))
     for end in (0, 1):
         lstar = lab_ends[end, 0]
-        gap = (a0 - d0) if end == 0 else (d1 - a1)
-        if gap <= min_gap * L or lstar < 80:
+        if lstar < 65:
             continue
         end_row = end_cols[end]
         end_lum = float(np.mean(end_row))
-        # a frame line just outside the core marks a real end
-        fb = (x0, max(0, a0 - 4), x1, a0) if (end == 0 and vertical) else (x0, a1, x1, min(H, a1 + 4)) if vertical else \
-             (max(0, a0 - 4), y0, a0, y1) if end == 0 else (a1, y0, min(W, a1 + 4), y1)
-        fr = _rows(crop, fb, vertical, band=0.9)
-        if len(fr) and ((np.mean(np.median(fr, axis=1), axis=1) < 160) & (end_lum - np.mean(np.median(fr, axis=1), axis=1) > 60)).any():
+        spread_thr = max(60.0, 2.0 * typ + 10.0)
+        # a frame line within a short window outside the core marks the real end: the rows between the core end and
+        # the frame belong to the bar (a light end trimmed as page background) when they are uniform across the bar
+        # and continuous row to row; the frame may lie at most a few pixels beyond the detector box
+        win = int(max(4, round(0.12 * L)))
+        margin = max(4.0, 0.03 * L)
+        fb = (x0, max(0, a0 - win), x1, a0) if (end == 0 and vertical) else (x0, a1, x1, min(H, a1 + win)) if vertical else \
+             (max(0, a0 - win), y0, a0, y1) if end == 0 else (a1, y0, min(W, a1 + win), y1)
+        fr = _rows(crop, fb, vertical)
+        if len(fr):
+            fr_med = np.median(fr, axis=1)
+            fr_lum = np.mean(fr_med, axis=1)
+            fr_spread = (np.percentile(fr, 95, axis=1) - np.percentile(fr, 5, axis=1)).max(axis=1)
+            frame = (fr_lum < 160) & (end_lum - fr_lum > 60) & (fr_spread <= spread_thr)
+            if frame.any():
+                idx = list(range(len(fr) - 1, -1, -1)) if end == 0 else list(range(len(fr)))   # outward from the core end
+                n_ok, prev = 0, end_row
+                for i in idx:
+                    if frame[i]:
+                        break
+                    if np.abs(fr_med[i] - prev).max() > 35.0:
+                        n_ok = -1
+                        break
+                    prev = fr_med[i]
+                    n_ok += 1
+                if n_ok > 0:
+                    pos = (a0 - n_ok) if end == 0 else (a1 + n_ok)
+                    beyond = (d0 - pos) if end == 0 else (pos - d1)          # extension beyond the detector box end
+                    if beyond <= margin:
+                        if end == 0:
+                            new0 = pos
+                        else:
+                            new1 = pos
+                continue
+        gap = (a0 - d0) if end == 0 else (d1 - a1)
+        if gap <= min_gap * L:
             continue
         limit = d0 if end == 0 else d1
         seg_box = ((x0, int(limit), x1, a0) if end == 0 else (x0, a1, x1, int(limit))) if vertical else \
@@ -183,7 +213,7 @@ def recover_light_end(crop, bbox, vertical, det_ac, min_gap=0.04, max_step=60.0)
         med = np.median(seg, axis=1)
         n_ok = 0
         for i in order:
-            if spread[i] > max(60.0, 2.0 * typ + 10.0) or np.abs(med[i] - end_row).max() > max_step:
+            if spread[i] > spread_thr or np.abs(med[i] - end_row).max() > max_step:
                 break
             n_ok += 1
         if n_ok == 0:
@@ -199,6 +229,9 @@ def recover_light_end(crop, bbox, vertical, det_ac, min_gap=0.04, max_step=60.0)
 # ----------------------------------------------------------------------------------------------- label selection
 def _item_bbox(it):
     pts = np.asarray(it["box"], float)
+    if it.get("segmented"):            # box of the segmented pass is in sub-crop coordinates; cx/cy are in crop coordinates
+        w, h = float(np.ptp(pts[:, 0])), float(np.ptp(pts[:, 1]))
+        return it["cx"] - w / 2, it["cy"] - h / 2, it["cx"] + w / 2, it["cy"] + h / 2
     return float(pts[:, 0].min()), float(pts[:, 1].min()), float(pts[:, 0].max()), float(pts[:, 1].max())
 
 
@@ -210,6 +243,29 @@ def _ac(box, vertical):
 def _edge_dist(pt, box):
     x, y = pt; x0, y0, x1, y1 = box
     return float(np.hypot(max(0.0, x0 - x, x - x1), max(0.0, y0 - y, y - y1)))
+
+
+_RE_SIGNED_NUM = re.compile(r"[-+]?\d+(?:\.\d+)?")
+
+
+def split_merged_numbers(text):
+    """A merged row of tick labels ('0.000.160.32', '-1.5-0.9-0.3 0.3', '0 25 50 75') -> list of values, or None.
+    The run must consist of numbers only (signs, spaces), give at least two values and be monotonic."""
+    vals = split_merged_decimals(text)
+    if vals:
+        return vals
+    t = _normalize(text).strip()
+    if not t or not re.fullmatch(r"[-+\d.\s]+", t) or t.count(".") + t.count(" ") + t.count("-") < 1:
+        return None
+    parts = _RE_SIGNED_NUM.findall(t)
+    if len(parts) < 2 or "".join(parts) != t.replace(" ", ""):
+        return None
+    try:
+        vals = [float(x) for x in parts]
+    except ValueError:
+        return None
+    d = np.diff(vals)
+    return vals if (np.all(d > 0) or np.all(d < 0)) else None
 
 
 def numeric_items(items):
@@ -250,6 +306,29 @@ def own_items(nums, det_box, other_bars, map_boxes):
     return keep
 
 
+def _with_ink(crop, items, vertical):
+    """Add ``ink_ca`` (centre of the glyphs along the bar axis, crop coordinates) to every OCR item whose box
+    contains ink; the box itself is kept."""
+    H, W = crop.shape[:2]
+    out = []
+    for it in items:
+        it = dict(it)
+        x0, y0, x1, y1 = _item_bbox(it)
+        x0, y0 = int(max(0, np.floor(x0))), int(max(0, np.floor(y0)))
+        x1, y1 = int(min(W, np.ceil(x1))), int(min(H, np.ceil(y1)))
+        if x1 - x0 >= 2 and y1 - y0 >= 2:
+            lum = crop[y0:y1, x0:x1].astype(float).mean(axis=2)
+            bg = float(np.percentile(lum, 90))
+            ink = np.clip(bg - lum, 0, None)
+            prof = ink.sum(axis=1) if vertical else ink.sum(axis=0)     # along the bar axis
+            if prof.max() > 0:
+                on = np.where(prof >= 0.15 * prof.max())[0]
+                if len(on):
+                    it["ink_ca"] = (y0 if vertical else x0) + 0.5 * (on[0] + on[-1]) + 0.5
+        out.append(it)
+    return out
+
+
 def classify(nums, strip_bbox, vertical):
     """Each number relative to the strip: kind in {end, inside, col, far}, pos along the strip (0..1), side across
     the axis (-1 / 0 / +1), near-edge offset from the strip, axis centre, and whether its box overlaps the strip."""
@@ -259,6 +338,8 @@ def classify(nums, strip_bbox, vertical):
     for it in nums:
         a0, a1, c0, c1 = _ac(it["bbox"], vertical)
         ca, cc = (a0 + a1) / 2, (c0 + c1) / 2
+        if it.get("ink_ca") is not None and a0 - 1 <= it["ink_ca"] <= a1 + 1:
+            ca = float(it["ink_ca"])                       # glyph centre, not text-box centre
         along = (ca - sa0) / L
         centred = abs(cc - (sc0 + sc1) / 2) <= max(0.5 * w, 4.0)
         beyond_lo, beyond_hi = a1 <= sa0 + 2, a0 >= sa1 - 2
@@ -398,9 +479,13 @@ def place_ends(chosen, sa0, sa1, ext_lo, ext_hi, text_h):
                 if abs(pred - c["num"]) <= 0.05 * (abs(b) + 1e-12):
                     new0, new1 = min(new0, c["ca"]), max(new1, c["ca"])
                     c["kind"] = "col"
-                elif c["kind"] == "end" and (c["num"] - pred) * (-1 if p < 0 else 1) * np.sign(b) > 0:
-                    # the sequence would reach this value beyond the label itself: the bar ends at its end label
+                elif c["kind"] == "end" and (c["num"] - pred) * (-1 if p < 0 else 1) * np.sign(b) > 0 \
+                        and abs(pred - c["num"]) <= 0.25 * (abs(b) + 1e-12):
+                    # the sequence would reach this value a little beyond the label itself: the bar ends at its end
+                    # label (a value far off the sequence belongs to something else, e.g. a neighbouring axis)
                     new0, new1 = min(new0, c["ca"]), max(new1, c["ca"])
+                elif c["kind"] == "end":
+                    c["kind"] = "far"
     Ln = max(1.0, new1 - new0)
     anchors = []
     for c in chosen:
@@ -503,8 +588,8 @@ def _attempt(items, bbox, ext, vertical, det_box, other_bars, map_boxes, core=No
     side_chosen = [c for c in chosen if c["side"] != 0]
     if side_chosen:
         off_chosen = float(np.median([c["off"] for c in side_chosen]))
-        nearer = [c for c in cands if c["side"] != 0 and c["kind"] != "far" and c["off"] < 0.5 * off_chosen and c["off"] <= max_off]
-        if nearer:
+        nearer = [c for c in cands if c["side"] != 0 and c["kind"] == "col" and c["off"] < 0.5 * off_chosen and c["off"] <= max_off]
+        if len(nearer) >= 2:
             near_skipped = 1 if np.mean([c["side"] for c in nearer]) > 0 else -1
     new0, new1, anchors = place_ends([dict(c) for c in chosen], sa0, sa1, ext[0], ext[1], text_h)
     offsets = [parse_offset(it["text"]) for it in items]
@@ -533,6 +618,23 @@ def _score(att):
             int(f.get("n_inliers", 0) or 0), len(att["anchors"]))
 
 
+def _overlap_frac(a, b):
+    """Fraction of box a (x0, y0, x1, y1) that lies inside box b."""
+    iw = max(0.0, min(a[2], b[2]) - max(a[0], b[0]))
+    ih = max(0.0, min(a[3], b[3]) - max(a[1], b[1]))
+    area = max(1e-6, (a[2] - a[0]) * (a[3] - a[1]))
+    return iw * ih / area
+
+
+def _inside_map(strip, det_box, map_boxes, strip_frac=0.9, det_frac=0.5):
+    """The map box that contains the strip (>= strip_frac of its area) while containing less than det_frac of the
+    detector box, or None. Such a strip is the edge of the map panel next to the detector box."""
+    for m in map_boxes or []:
+        if _overlap_frac(strip, m) >= strip_frac and _overlap_frac(det_box, m) < det_frac:
+            return tuple(int(v) for v in m)
+    return None
+
+
 def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit_mode="raw"):
     """crop: padded RGB crop; roi/det_box: detector bar box in crop coordinates; other_bars, map_boxes: the other
     detected bars and the maps in crop coordinates. Returns a dict with the same keys as read_colorbar."""
@@ -545,6 +647,14 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
     vertical = orientation == "vertical"
     det_ac = (int(roi[1]), int(roi[3])) if vertical else (int(roi[0]), int(roi[2]))
     bbox, ext_lo, ext_hi = recover_light_end(crop, bbox, vertical, det_ac)
+    geom0 = {"core": tuple(int(v) for v in core), "strip_out": tuple(int(v) for v in bbox), "det": tuple(int(v) for v in roi)}
+    if _overlap_frac(bbox, roi) < 0.5:
+        return {"ok": False, "reason": "gradient region lies outside the detector box", "bbox": bbox, "orientation": orientation,
+                "fit": None, "ocr_items": [], "touches_border": None, "geom_debug": geom0}
+    inside = _inside_map(bbox, roi, map_boxes)
+    if inside is not None:
+        return {"ok": False, "reason": "gradient region lies inside a map panel", "bbox": bbox, "orientation": orientation,
+                "fit": None, "ocr_items": [], "touches_border": None, "geom_debug": {**geom0, "map": inside}}
     sa0, sa1, sc0, sc1 = _ac(bbox, vertical)
     L, w = sa1 - sa0, sc1 - sc0
     touches = ("lo" if sa0 <= 2 else "") + ("hi" if sa1 >= (H if vertical else W) - 2 else "")
@@ -559,15 +669,18 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
     if not vertical:
         extra = []
         for it in items1:
-            vals = split_merged_decimals(it["text"])
+            vals = split_merged_numbers(it["text"])
             if vals and len(vals) >= 2:
-                xs = np.linspace(it["box"][0][0], it["box"][1][0], len(vals))
-                extra += [{"text": f"{v:g}", "conf": it["conf"], "cx": float(x), "cy": it["cy"], "h": it["h"], "box": it["box"]}
-                          for v, x in zip(vals, xs)]
+                bx0, by0, bx1, by1 = _item_bbox(it)
+                edges = np.linspace(bx0, bx1, len(vals) + 1)      # one sub-box per label, side by side
+                extra += [{"text": f"{v:g}", "conf": it["conf"], "cx": float(0.5 * (e0 + e1)), "cy": it["cy"], "h": it["h"],
+                           "box": [[float(e0), by0], [float(e1), by0], [float(e1), by1], [float(e0), by1]]}
+                          for v, e0, e1 in zip(vals, edges[:-1], edges[1:])]
         if not extra and len(numeric_items(items1)) < 3:
             extra = ocr.read_horizontal_labels(crop, bbox, items1)
         if extra:
             items1 = [it for it in items1 if parse_number_unit(fix_glued(it["text"]))[0] is None] + extra
+    items1 = _with_ink(crop, items1, vertical)
     attempts = [_attempt(items1, bbox, (ext_lo, ext_hi), *ctx)]
     best = attempts[0]
     f1 = best["fit"]
@@ -580,7 +693,7 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
             target = 36.0 / max(h_med, 5.0) if h_med else max(2.0, 28.0 / max(w, 4.0))
             scale2 = float(np.clip(max(target, 1.5 * base_scale), 1.5, 8.0))
             if scale2 > base_scale * 1.1:
-                attempts.append(_attempt(ocr.read(crop, scale=scale2), bbox, (ext_lo, ext_hi), *ctx))
+                attempts.append(_attempt(_with_ink(crop, ocr.read(crop, scale=scale2), vertical), bbox, (ext_lo, ext_hi), *ctx))
         # pass 3: the label column alone, at a scale that makes the labels large
         side_items = [c for c in best["chosen"] if c["side"] != 0] if best["chosen"] else []
         side = (1 if np.mean([c["side"] for c in side_items]) > 0 else -1) if side_items else 0
@@ -607,7 +720,7 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
             raw = ocr.read(sub, scale=scale3)
             items3 = [{**it, "cx": it["cx"] + cx0, "cy": it["cy"] + cy0, "box": [[p[0] + cx0, p[1] + cy0] for p in it["box"]]} for it in raw]
             items3 += [it for it in items1 if parse_number_unit(fix_glued(it["text"]))[0] is None]   # unit texts of pass 1
-            attempts.append(_attempt(items3, bbox, (ext_lo, ext_hi), *ctx))
+            attempts.append(_attempt(_with_ink(crop, items3, vertical), bbox, (ext_lo, ext_hi), *ctx))
         best = max(attempts, key=_score)
 
     fit, bbox = best["fit"], best["bbox"]
