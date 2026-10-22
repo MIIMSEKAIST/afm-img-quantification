@@ -8,4 +8,4 @@ from .render import render_to_published_style
 from .metrics import evaluate
 
 __all__ = ["quantify_map", "render_to_published_style", "evaluate"]
-__version__ = "0.1.0"
+__version__ = "1.1.0"

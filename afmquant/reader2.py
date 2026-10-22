@@ -760,10 +760,11 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
                 units.append((u, _unit_score(u), it["conf"], _edge_dist((x, y), det_box)))
         if units:
             unit = max(units, key=lambda t: (t[1], -t[3], t[2]))[0]
-        elif vertical:
+        if vertical and (unit is None or canonical_unit(unit) is None):
+            # unit labels of vertical bars are usually rotated: an upright read gives no unit or a non-unit string
             rot = ocr.read(np.ascontiguousarray(np.rot90(crop, k=-1)))
             ru = [(parse_unit(it["text"]), it["conf"]) for it in rot]
-            ru = [u for u in ru if u[0] is not None]
+            ru = [u for u in ru if u[0] is not None and canonical_unit(u[0]) is not None]
             if ru:
                 unit = max(ru, key=lambda u: u[1])[0]
     unit_raw = unit
