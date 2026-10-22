@@ -322,11 +322,15 @@ def _with_ink(crop, items, vertical):
             lum = crop[y0:y1, x0:x1].astype(float).mean(axis=2)
             bg = float(np.percentile(lum, 90))
             ink = np.clip(bg - lum, 0, None)
-            prof = ink.sum(axis=1) if vertical else ink.sum(axis=0)     # along the bar axis
-            if prof.max() > 0:
-                on = np.where(prof >= 0.15 * prof.max())[0]
-                if len(on):
-                    it["ink_ca"] = (y0 if vertical else x0) + 0.5 * (on[0] + on[-1]) + 0.5
+            if ink.max() > 0:
+                dark = ink > 0.3 * ink.max()                                 # ink pixels
+                cnt = dark.sum(axis=1) if vertical else dark.sum(axis=0)     # per row / column along the bar axis
+                on = np.where(cnt >= 1)[0]
+                if len(on) >= 2:                                             # keep runs of >= 2 lines: a 1-px minus
+                    runs = np.split(on, np.where(np.diff(on) > 1)[0] + 1)    # sign counts, isolated speckles do not
+                    keep = [r for r in runs if len(r) >= 2]
+                    if keep:
+                        it["ink_ca"] = (y0 if vertical else x0) + 0.5 * (keep[0][0] + keep[-1][-1]) + 0.5
         out.append(it)
     return out
 
@@ -696,7 +700,8 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
         if not extra and len(numeric_items(items1)) < 3:
             extra = ocr.read_horizontal_labels(crop, bbox, items1)
         if extra:
-            items1 = [it for it in items1 if parse_number_unit(fix_glued(it["text"]))[0] is None] + extra
+            items1 = [it for it in items1 if parse_number_unit(fix_glued(it["text"]))[0] is None
+                      or parse_offset(it["text"]) is not None] + extra          # keep exponent offsets ('1e-12')
     items1 = _with_ink(crop, items1, vertical)
     attempts = [_attempt(items1, bbox, (ext_lo, ext_hi), *ctx)]
     best = attempts[0]
@@ -736,7 +741,8 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
             scale3 = float(np.clip(40.0 / max(h_est, 5.0), 2.0, 8.0))
             raw = ocr.read(sub, scale=scale3)
             items3 = [{**it, "cx": it["cx"] + cx0, "cy": it["cy"] + cy0, "box": [[p[0] + cx0, p[1] + cy0] for p in it["box"]]} for it in raw]
-            items3 += [it for it in items1 if parse_number_unit(fix_glued(it["text"]))[0] is None]   # unit texts of pass 1
+            items3 += [it for it in items1 if parse_number_unit(fix_glued(it["text"]))[0] is None
+                       or parse_offset(it["text"]) is not None]   # unit texts and exponent offsets of pass 1
             attempts.append(_attempt(_with_ink(crop, items3, vertical), bbox, (ext_lo, ext_hi), *ctx))
         best = max(attempts, key=_score)
 
