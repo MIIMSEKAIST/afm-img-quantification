@@ -26,8 +26,8 @@ numeric labels are read (logarithmic scales are flagged and skipped); a panel wh
 colour bar cannot be identified from the figure layout, or whose own colour bar is
 not readable, is withheld rather than quantified with a neighbour's bar (status
 `no_exclusive_bar` / `own_bar_unreadable`); on real figures the remaining scale errors
-are mostly saturated white bar ends that no frame bounds and labels of neighbouring
-axes; the detector recognises colour-mapped
+are mostly labels of a neighbouring axis taken for the bar's, lost minus signs and
+saturated white bar ends that no frame line bounds; the detector recognises colour-mapped
 panels of any technique, so AFM specificity comes from the caption / unit filter.
 The accuracy of the pipeline on real literature figures (human verification of two
 1,000-figure samples, before and after the revision) is reported in the manuscript
@@ -43,6 +43,7 @@ afmquant/            importable package
   colorbar.py          colour-bar crop -> gradient region -> 256-sample calibration strip
   ocr.py               tick-label OCR (RapidOCR / PP-OCRv4), label parsing, unit lexicon, scale fitting (submitted reader)
   reader2.py           label-column colour-bar reader (released): geometry-based label selection, verified strip ends,
+                       ink-based sign decision, unit placement rules, laid-out-bar candidates
                        ink-based sign decision, unit placement rules, laid-out-bar candidates
                        ink-based sign decision, unit placement rules, laid-out-bar candidates
   pairing.py           map <-> colour-bar pairing by gamut compatibility and layout evidence (ambiguous panels are held)
