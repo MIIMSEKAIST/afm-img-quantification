@@ -9,12 +9,17 @@ are returned unpaired and are not quantified.
 
 ``mode="evidence"`` (revision R1, human verification of the corpus sample):
 gamut compatibility alone does not discriminate between the bars of a figure
-(same colormap everywhere), so the nearest compatible bar is accepted only when
-the figure supplies positive evidence that it belongs to the map: either the
-bar is *laid out* as the map's own bar (aligned with the map's long side, at
-most ``layout_gap`` map widths away) or it is *exclusive* (no other map chose
-it). Maps without such evidence are returned unpaired with ``reason =
-"no_exclusive_bar"`` instead of being assigned to a distant bar.
+(same colormap everywhere), so a bar is accepted only with positive evidence
+that it belongs to the map. A map whose figure lays out a bar as its own (the
+bar aligned with the map's side within ``layout_gap`` map widths; a bar laid
+out between two maps goes to the map on the figure's usual side of its bars,
+or to the clearly nearer map) takes that bar - the most compatible readable
+one when several are laid out - and is held (``reason = "own_bar_unreadable"``)
+when its own bar cannot be read or does not match the map's colours. Any other
+map takes the nearest compatible bar only when the bar is *exclusive* (chosen
+by no other map near it, laid out for no map, and near) or laid out for the map's row
+or column of maps (``row_evidence``); otherwise it is returned unpaired with
+``reason = "no_exclusive_bar"`` instead of being assigned to a distant bar.
 """
 from __future__ import annotations
 
@@ -42,25 +47,107 @@ def box_distance(a, b):
     return float(np.hypot(dx, dy))
 
 
-def layout_evidence(map_box, bar_box, orientation=None, min_overlap=0.8, layout_gap=0.3):
-    """True when the bar is laid out as the map's own bar: it overlaps the map's extent along
-    the bar axis by >= ``min_overlap`` and lies within ``layout_gap`` map widths (heights) of the map."""
+def _orientation(bar):
+    bb = bar["box"]
+    return bar.get("orientation") or ("vertical" if (bb[3] - bb[1]) >= (bb[2] - bb[0]) else "horizontal")
+
+
+def layout_evidence(map_box, bar_box, orientation=None, min_overlap=0.8, layout_gap=0.3, min_len=0.25):
+    """True when the bar is laid out as the map's own bar: it lies within ``layout_gap`` map widths (heights) of
+    the map across the bar axis and, along the bar axis, overlaps the map by ``min_overlap`` of the shorter of the
+    two extents; a bar shorter than the map must also be centred within the map's extent and at least
+    ``min_len`` of the map long."""
     mx0, my0, mx1, my1 = map_box
     bx0, by0, bx1, by1 = bar_box
     mw, mh = max(1.0, mx1 - mx0), max(1.0, my1 - my0)
     if orientation is None:
         orientation = "vertical" if (by1 - by0) >= (bx1 - bx0) else "horizontal"
     if orientation == "vertical":
-        overlap = max(0.0, min(my1, by1) - max(my0, by0)) / mh
+        m0, m1, b0, b1, mlen = my0, my1, by0, by1, mh
         gap = max(0.0, max(mx0 - bx1, bx0 - mx1)) / mw
     else:
-        overlap = max(0.0, min(mx1, bx1) - max(mx0, bx0)) / mw
+        m0, m1, b0, b1, mlen = mx0, mx1, bx0, bx1, mw
         gap = max(0.0, max(my0 - by1, by0 - my1)) / mh
-    return bool(overlap >= min_overlap and gap <= layout_gap)
+    blen = max(1.0, b1 - b0)
+    ov = max(0.0, min(m1, b1) - max(m0, b0))
+    if blen >= mlen:
+        along = ov >= min_overlap * mlen
+    else:
+        centre = (b0 + b1) / 2.0
+        along = ov >= min_overlap * blen and blen >= min_len * mlen and m0 - 0.1 * mlen <= centre <= m1 + 0.1 * mlen
+    return bool(along and gap <= layout_gap)
+
+
+def layout_side(map_box, bar_box, orientation=None):
+    """Side of the map on which a bar lies: 'right' / 'left' for a vertical bar, 'below' / 'above' for a
+    horizontal one (by box centres)."""
+    mx0, my0, mx1, my1 = map_box
+    bx0, by0, bx1, by1 = bar_box
+    if orientation is None:
+        orientation = "vertical" if (by1 - by0) >= (bx1 - bx0) else "horizontal"
+    if orientation == "vertical":
+        return "right" if (bx0 + bx1) / 2.0 >= (mx0 + mx1) / 2.0 else "left"
+    return "below" if (by0 + by1) / 2.0 >= (my0 + my1) / 2.0 else "above"
+
+
+def _across_gap(map_box, bar_box, orientation):
+    mx0, my0, mx1, my1 = map_box
+    bx0, by0, bx1, by1 = bar_box
+    if orientation == "vertical":
+        return max(0.0, max(mx0 - bx1, bx0 - mx1))
+    return max(0.0, max(my0 - by1, by0 - my1))
+
+
+def own_bars(map_boxes, bars, min_overlap=0.8, layout_gap=0.3):
+    """For every map the bars laid out as its own (``layout_evidence``), after resolving bars laid out for maps on
+    both of their sides (a bar between two maps): the figure's convention decides when every bar laid out for a
+    single map lies on the same side of its map (bars left of their maps, say); otherwise the clearly nearer map
+    keeps the bar; otherwise both keep it. Returns (own, owners): the bar indices per map and the map indices per
+    bar."""
+    laid = {}
+    for bi, bar in enumerate(bars):
+        o = _orientation(bar)
+        for mi, mb in enumerate(map_boxes):
+            if layout_evidence(mb, bar["box"], o, min_overlap, layout_gap):
+                laid.setdefault(bi, []).append(mi)
+    votes = {}
+    for bi, ms in laid.items():
+        if len(ms) == 1:
+            s = layout_side(map_boxes[ms[0]], bars[bi]["box"], _orientation(bars[bi]))
+            votes[s] = votes.get(s, 0) + 1
+
+    def unanimous(keys):
+        v = [k for k in keys if votes.get(k, 0) > 0]
+        return v[0] if len(v) == 1 else None
+
+    conv = {"vertical": unanimous(("left", "right")), "horizontal": unanimous(("above", "below"))}
+    owners = {}
+    for bi, ms in laid.items():
+        o = _orientation(bars[bi])
+        if len(ms) >= 2:
+            by_side = {}
+            for mi in ms:
+                by_side.setdefault(layout_side(map_boxes[mi], bars[bi]["box"], o), []).append(mi)
+            if len(by_side) == 2:
+                c = conv[o]
+                if c in by_side:
+                    ms = by_side[c]
+                else:
+                    gaps = {mi: _across_gap(map_boxes[mi], bars[bi]["box"], o) for mi in ms}
+                    near_side = min(by_side, key=lambda s: min(gaps[m] for m in by_side[s]))
+                    far_side = next(s for s in by_side if s != near_side)
+                    g_near = min(gaps[m] for m in by_side[near_side])
+                    g_far = min(gaps[m] for m in by_side[far_side])
+                    size = min(min(map_boxes[m][2] - map_boxes[m][0], map_boxes[m][3] - map_boxes[m][1]) for m in ms)
+                    if g_far - g_near > max(4.0, 0.03 * size):
+                        ms = by_side[near_side]
+        owners[bi] = list(ms)
+    own = [[bi for bi, ms in owners.items() if mi in ms] for mi in range(len(map_boxes))]
+    return own, owners
 
 
 def pair_maps_to_bars(image_rgb, map_boxes, bars, min_compat=0.5, tie_margin=0.10, mode="nearest",
-                      layout_gap=0.3, min_overlap=0.8):
+                      layout_gap=0.3, min_overlap=0.8, own_min_compat=0.8, exclusive_reach=1.5):
     """
     Parameters
     ----------
@@ -71,7 +158,8 @@ def pair_maps_to_bars(image_rgb, map_boxes, bars, min_compat=0.5, tie_margin=0.1
     Returns
     -------
     list of dicts (one per map): map_idx, bar_idx (or None), compat, distance,
-    candidates (compat per bar).
+    candidates (compat per bar); in evidence mode also evidence and, for unpaired
+    maps, reason.
     """
     H, W = image_rgb.shape[:2]
     diag = float(np.hypot(W, H))
@@ -97,36 +185,46 @@ def pair_maps_to_bars(image_rgb, map_boxes, bars, min_compat=0.5, tie_margin=0.1
                     "compat": None if best is None else best[1],
                     "distance": None if best is None else best[2],
                     "candidates": [{"bar_idx": b, "compat": c, "distance": d} for b, c, d in cands]})
-    if mode == "evidence":
-        # a map laid out with an unreadable bar of its own is held: its values cannot be taken from another bar
-        unreadable = [k for k, bar in enumerate(bars) if bar.get("strip") is None]
-        for o, mb in zip(out, map_boxes):
-            own_unread = [k for k in unreadable if layout_evidence(mb, bars[k]["box"], bars[k].get("orientation"), min_overlap, layout_gap)]
-            if own_unread and not (o["bar_idx"] is not None and
-                                   layout_evidence(mb, bars[o["bar_idx"]]["box"], bars[o["bar_idx"]].get("orientation"), min_overlap, layout_gap)):
-                o.update({"bar_idx": None, "reason": "own_bar_unreadable", "own_bar_idx": own_unread[0],
-                          "evidence": {"layout": False, "exclusive": False, "row": False, "own_unreadable": True}})
-        chosen = [o["bar_idx"] for o in out]
-        # owners: maps for which a bar is laid out as their own bar
-        owners = {}
-        for mi, (o, mb) in enumerate(zip(out, map_boxes)):
-            if o["bar_idx"] is not None:
-                bar = bars[o["bar_idx"]]
-                if layout_evidence(mb, bar["box"], bar.get("orientation"), min_overlap, layout_gap):
-                    owners.setdefault(o["bar_idx"], []).append(mi)
-        for mi, (o, mb) in enumerate(zip(out, map_boxes)):
-            if o["bar_idx"] is None:
-                continue
-            bi = o["bar_idx"]
-            laid_out = mi in owners.get(bi, [])
-            exclusive = chosen.count(bi) == 1
-            in_row = row_evidence(mi, bi, map_boxes, bars, chosen, min_overlap)
-            # a shared bar that is owned by another map is not shared with this map unless the layout evidence
-            # (row / stack) includes that owner, i.e. the bar serves the whole group
-            owned_by_other = bool(owners.get(bi)) and not laid_out
-            o["evidence"] = {"layout": laid_out, "exclusive": exclusive, "row": in_row, "owned_by_other": owned_by_other}
-            if not (laid_out or exclusive or in_row):
-                o.update({"bar_idx": None, "reason": "no_exclusive_bar"})
+    if mode != "evidence":
+        return out
+    own, owners = own_bars(map_boxes, bars, min_overlap, layout_gap)
+    # 1. a map with bars of its own takes the most compatible readable one; it is held when none can be read, when
+    #    the readable one does not match the map's colours, or when an unreadable own bar competes with a readable
+    #    one that matches only loosely
+    for mi, (o, mb) in enumerate(zip(out, map_boxes)):
+        mine = own[mi]
+        if not mine:
+            continue
+        compat = {c["bar_idx"]: c["compat"] for c in o["candidates"]}
+        readable = [bi for bi in mine if bars[bi].get("strip") is not None]
+        unread = [bi for bi in mine if bars[bi].get("strip") is None]
+        best = max(readable, key=lambda bi: compat.get(bi, -1.0)) if readable else None
+        cb = compat.get(best, 0.0) if best is not None else 0.0
+        if best is not None and cb >= min_compat and (not unread or cb >= own_min_compat):
+            o.update({"bar_idx": best, "compat": cb, "distance": box_distance(mb, bars[best]["box"]) / diag,
+                      "evidence": {"layout": True, "exclusive": len(owners.get(best, [])) == 1, "row": False,
+                                   "owned_by_other": False}})
+        else:
+            o.update({"bar_idx": None, "reason": "own_bar_unreadable", "own_bar_idx": (unread or mine)[0],
+                      "evidence": {"layout": False, "exclusive": False, "row": False, "own_unreadable": bool(unread),
+                                   "own_incompatible": best is not None and cb < min_compat}})
+    chosen = [o["bar_idx"] for o in out]
+    # 2. the other maps: the nearest compatible bar is accepted when it is exclusive or laid out for the map's
+    #    row or column of maps
+    for mi, (o, mb) in enumerate(zip(out, map_boxes)):
+        if own[mi] or o["bar_idx"] is None:
+            continue
+        bi = o["bar_idx"]
+        owned_by_other = bool(owners.get(bi))
+        reach = lambda j: exclusive_reach * max(map_boxes[j][2] - map_boxes[j][0], map_boxes[j][3] - map_boxes[j][1])
+        near = box_distance(mb, bars[bi]["box"]) <= reach(mi)
+        # exclusive: no other map within its own reach of the bar chose it (a distant map does not compete)
+        competitors = [j for j, c in enumerate(chosen) if c == bi and j != mi and box_distance(map_boxes[j], bars[bi]["box"]) <= reach(j)]
+        exclusive = near and not competitors and not owned_by_other
+        in_row = row_evidence(mi, bi, map_boxes, bars, chosen, min_overlap, layout_gap)
+        o["evidence"] = {"layout": False, "exclusive": exclusive, "row": in_row, "owned_by_other": owned_by_other}
+        if not (exclusive or in_row):
+            o.update({"bar_idx": None, "reason": "no_exclusive_bar"})
     return out
 
 
@@ -144,9 +242,10 @@ def row_evidence(mi, bi, map_boxes, bars, chosen, min_overlap=0.8, layout_gap=0.
 
     Two layouts are recognised. *Row*: every sharing map is aligned with the bar along the bar axis (a row of
     maps with one vertical bar), the bar lies beyond all of them (at the end of the row) and no other bar lies
-    between map ``mi`` and it. *Stack*: the sharing maps are aligned with each other across the bar axis (a
-    column of maps beside one vertical bar), the bar is adjacent to the stack's extent and inside it along the
-    bar axis, and no other bar lies between map ``mi`` and the bar's position in the stack."""
+    between map ``mi`` and it. *Stack*: the sharing maps aligned with map ``mi`` across the bar axis (its column
+    of maps beside one vertical bar) number at least two, the bar is adjacent to that column's extent (and reaches
+    map ``mi`` along the axis when it is laid out as another map's own bar), and no other bar lies between map
+    ``mi`` and the bar's position in the column."""
     bar = bars[bi]
     bb = bar["box"]
     orientation = bar.get("orientation") or ("vertical" if (bb[3] - bb[1]) >= (bb[2] - bb[0]) else "horizontal")
@@ -171,21 +270,27 @@ def row_evidence(mi, bi, map_boxes, bars, chosen, min_overlap=0.8, layout_gap=0.
         between = [b2 for b2 in others if _aligned_axis(b2, bb, orientation, 0.5) and lo < centre(b2, c0, c1) < hi]
         if beyond and not between:
             return True
-    # ---- stack layout
+    # ---- stack layout: the sharing maps aligned with map mi across the bar axis form its column
     perp = "horizontal" if v else "vertical"
-    if not all(_aligned_axis(map_boxes[j], mb, perp, min_overlap) for j in group):
+    col = [j for j in group if j == mi or _aligned_axis(map_boxes[j], mb, perp, min_overlap)]
+    if len(col) < 2:
         return False
-    xs = [map_boxes[j] for j in group]
-    ext_c0, ext_c1 = min(b[c0] for b in xs), max(b[c1] for b in xs)       # stack extent across the bar axis
-    ext_a0, ext_a1 = min(b[a0] for b in xs), max(b[a1] for b in xs)       # stack extent along the bar axis
+    xs = [map_boxes[j] for j in col]
+    ext_c0, ext_c1 = min(b[c0] for b in xs), max(b[c1] for b in xs)       # column extent across the bar axis
+    ext_a0, ext_a1 = min(b[a0] for b in xs), max(b[a1] for b in xs)       # column extent along the bar axis
     w = max(1.0, max(b[c1] - b[c0] for b in xs))
     adjacent = max(0.0, max(ext_c0 - bb[c1], bb[c0] - ext_c1)) <= layout_gap * w and bb[a0] < ext_a1 and bb[a1] > ext_a0
+    # a bar laid out as the own bar of another map of the column is shared with map mi only when it also reaches
+    # map mi along the axis (a short bar beside one map of the column is that map's own)
+    reach = max(0.0, min(mb[a1], bb[a1]) - max(mb[a0], bb[a0])) / max(1.0, mb[a1] - mb[a0])
+    if reach < 0.3 and any(layout_evidence(map_boxes[j], bb, orientation, min_overlap, layout_gap) for j in col if j != mi):
+        return False
     if not adjacent:
         return False
-    # the map nearest to the bar along the stack is the bar's anchor; nothing may lie between it and map mi
-    anchor = min(group, key=lambda j: abs(centre(map_boxes[j], a0, a1) - centre(bb, a0, a1)))
+    # the map nearest to the bar along the column is the bar's anchor; nothing may lie between it and map mi
+    anchor = min(col, key=lambda j: abs(centre(map_boxes[j], a0, a1) - centre(bb, a0, a1)))
     am = map_boxes[anchor]
     lo, hi = min(mb[a0], am[a0]), max(mb[a1], am[a1])
-    # another bar in the same bar column, between the anchor map and map mi along the stack
+    # another bar in the same bar column, between the anchor map and map mi along the column
     between = [b2 for b2 in others if lo < centre(b2, a0, a1) < hi and _aligned_axis(b2, bb, perp, 0.3)]
     return not between

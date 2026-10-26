@@ -113,7 +113,120 @@ def _extend_along_axis(diff, bbox, orientation, thr, max_gap=2):
     return (lo, y0, hi, y1)
 
 
-def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, roi_margin=0.15, extend=True):
+_FINDER_CONFIGS = ((None, False), (2, False), (1, False), (None, 3), (2, 5))
+
+
+def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, roi_margin=0.15, extend=True,
+                         candidates=False):
+    """Gradient strip of a colour-bar crop (see ``_find_gradient_region_once``). The search runs with the standard
+    opening kernel, with smaller kernels (thin strips of 2-4 px are erased by the standard one) and with a closing
+    step (white text written across the bar fragments the strip); every configuration that finds a region
+    contributes a candidate, refined across the bar axis to the lines that behave like a gradient
+    (``refine_across``). ``candidates=True`` returns the distinct candidates in search order; otherwise the
+    candidate chosen by ``choose_candidate`` (the longest along the bar axis among those whose orientation agrees
+    with an elongated ``roi``)."""
+    found = []
+    for k_override, close in _FINDER_CONFIGS:
+        r = _find_gradient_region_once(crop_rgb, fg_threshold, open_frac, roi, roi_margin, extend, k_override, close)
+        if r is not None and r not in found:
+            found.append(r)
+    if candidates:
+        return found
+    return choose_candidate(found, roi, roi_margin)
+
+
+def choose_candidate(found, roi=None, roi_margin=0.15, longer=1.5):
+    """The longest candidate along the bar axis (extent clipped to the roi plus its margin) among those whose
+    orientation agrees with the roi when the roi is clearly elongated and whose width is comparable to the
+    narrowest candidate of comparable length - but only when it is at least 1.5x longer than the candidate of
+    the standard configuration (the first), which is kept otherwise."""
+    if not found:
+        return None
+    ok = list(found)
+    if roi is not None:
+        rx0, ry0, rx1, ry1 = roi
+        rw, rh = max(1, rx1 - rx0), max(1, ry1 - ry0)
+        if max(rw, rh) >= 1.5 * min(rw, rh):
+            exp = "vertical" if rh >= rw else "horizontal"
+            ok = [c for c in ok if c[1] == exp]
+            if not ok:
+                return None
+
+    def geom(c):
+        (x0, y0, x1, y1), o = c
+        if o == "vertical":
+            a0, a1, w = y0, y1, x1 - x0
+            if roi is not None:
+                m = roi_margin * (roi[3] - roi[1])
+                a0, a1 = max(a0, roi[1] - m), min(a1, roi[3] + m)
+        else:
+            a0, a1, w = x0, x1, y1 - y0
+            if roi is not None:
+                m = roi_margin * (roi[2] - roi[0])
+                a0, a1 = max(a0, roi[0] - m), min(a1, roi[2] + m)
+        return a1 - a0, w
+
+    lengths = [geom(c)[0] for c in ok]
+    longest = max(lengths)
+    # a candidate much wider than the narrowest candidate of comparable length has swallowed the labels or a
+    # neighbouring map (a closing step merges them with the strip): it is not the strip
+    w_min = min(geom(c)[1] for c, l in zip(ok, lengths) if l >= 0.5 * longest)
+    ok = [c for c in ok if geom(c)[1] <= max(1.5 * w_min, w_min + 4)]
+    # the standard configuration (first) is kept unless a fallback candidate is much longer: a thin strip erased by
+    # the standard opening or a strip fragmented by text comes back whole, a slightly longer candidate does not
+    base = ok[0]
+    best = max(ok, key=lambda c: geom(c)[0])
+    return best if geom(best)[0] >= longer * geom(base)[0] else base
+
+
+def refine_across(crop_rgb, bbox, orientation, diff=None, fg_threshold=40, min_width=3):
+    """Across the bar axis, keep the longest run of lines (the columns of a vertical bar) that behave like a
+    gradient strip. Each line is judged on its foreground rows (those differing from the page): the median
+    absolute step between neighbouring rows must be within a few levels of the step a gradient of that contrast
+    and length needs (3 + 5 * contrast / rows), the line must be foreground over at least 30% of the region and
+    must not be a dark frame line. A map touching the bar's frame (its texture steps are larger), the frame
+    itself and tick marks beside a thin strip are thereby removed from the region. Returns the input box when no
+    such run of at least ``min_width`` lines exists."""
+    x0, y0, x1, y1 = [int(v) for v in bbox]
+    sub = crop_rgb[y0:y1, x0:x1].astype(float)
+    if sub.shape[0] < 4 or sub.shape[1] < 2:
+        return bbox
+    if diff is None:
+        _, diff = _background_and_diff(crop_rgb)
+    d = diff[y0:y1, x0:x1]
+    if orientation != "vertical":                                     # axis 0 = along the bar, axis 1 = across
+        sub, d = sub.transpose(1, 0, 2), d.T
+    L, n_lines = sub.shape[:2]
+    if L < 4:
+        return bbox
+    lum = sub.mean(axis=2)
+    fgm = d > fg_threshold
+    steps = np.abs(np.diff(sub, axis=0)).max(axis=2)
+    both = fgm[1:] & fgm[:-1]
+    good = np.zeros(n_lines, bool)
+    for x in range(n_lines):
+        rows = lum[fgm[:, x], x]
+        st = steps[both[:, x], x]
+        if len(rows) < max(4, 0.3 * L) or len(st) < 3:
+            continue
+        rng = float(np.percentile(rows, 95) - np.percentile(rows, 5))
+        thr = 3.0 + 5.0 * max(rng, 60.0) / float(len(rows))
+        good[x] = float(np.median(st)) <= thr and float(np.percentile(rows, 75)) > 40.0
+    best, start = None, None
+    for i, g in enumerate(list(good) + [False]):
+        if g and start is None:
+            start = i
+        elif not g and start is not None:
+            if best is None or i - start > best[1] - best[0]:
+                best = (start, i)
+            start = None
+    if best is None or best[1] - best[0] < min_width:
+        return bbox
+    lo, hi = best
+    return (x0 + lo, y0, x0 + hi, y1) if orientation == "vertical" else (x0, y0 + lo, x1, y0 + hi)
+
+def _find_gradient_region_once(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, roi_margin=0.15, extend=True,
+                               k_override=None, close=False):
     """Return ``((x0, y0, x1, y1), orientation)`` of the gradient strip inside a
     colour-bar crop, or ``None`` if no solid region is found.
 
@@ -134,7 +247,13 @@ def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, ro
         keep[int(max(0, ry0 - my)):int(min(h, ry1 + my)), int(max(0, rx0 - mx)):int(min(w, rx1 + mx))] = 1
         fg = fg * keep
     k = max(3, int(round(open_frac * min(h, w))))
-    fg_open = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((k, k), np.uint8))
+    if k_override is not None:
+        k = int(k_override)
+    if close:
+        fg = cv2.morphologyEx(fg, cv2.MORPH_CLOSE, np.ones((int(close), int(close)), np.uint8))
+    fg_open = cv2.morphologyEx(fg, cv2.MORPH_OPEN, np.ones((k, k), np.uint8)) if k > 1 else fg
+    if k_override is not None:
+        fg_open = fg_open * fg                 # an even fallback kernel shifts the opened mask by a pixel: keep it inside fg
     n, _, stats, _ = cv2.connectedComponentsWithStats(fg_open, connectivity=8)
     if n <= 1:
         return None
@@ -149,10 +268,12 @@ def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, ro
 
     # candidates in order of area; a candidate that is the clipped edge of a
     # larger image (e.g. the map next to the bar) is skipped, not fatal
+    fallback = None
     for area, x, y, bw, bh in comps:
         if area < 0.02 * comps[0][0]:
             break
         vertical = bh >= bw
+        from_clip = False
         x0, y0, x1, y1 = x, y, x + bw, y + bh
         # merge components aligned with this one on the short axis
         for a, cx, cy, cw, ch in comps:
@@ -183,12 +304,43 @@ def find_gradient_region(crop_rgb, fg_threshold=40, open_frac=0.04, roi=None, ro
                     clipped = y1 >= int(min(h, ry1 + my)) - 1 or y0 <= int(max(0, ry0 - my)) + 1
                     larger = fh > 1.5 * (y1 - y0) + 6 and fw > 0.5 * (x1 - x0)
                 if clipped and larger:
-                    continue
+                    # a map touching the bar merges with it into one component: keep the part that behaves like
+                    # a gradient strip across the bar axis, if it separates from the clipping edge
+                    ref = refine_across(crop_rgb, (x0, y0, x1, y1), orientation, diff, fg_threshold)
+                    if ref == (x0, y0, x1, y1):
+                        continue
+                    if orientation == "vertical":
+                        still = ref[2] >= int(min(w, rx1 + mx)) - 1 or ref[0] <= int(max(0, rx0 - mx)) + 1
+                    else:
+                        still = ref[3] >= int(min(h, ry1 + my)) - 1 or ref[1] <= int(max(0, ry0 - my)) + 1
+                    if still:
+                        continue
+                    x0, y0, x1, y1 = ref
+                    from_clip = True
         bbox = (x0, y0, x1, y1)
+        # tick marks or a touching map attached to a thin strip widen its component: keep the gradient-like lines
+        # when they are a clear minority of the component's width (a one- or two-pixel trim is not applied)
+        ref = refine_across(crop_rgb, bbox, orientation, diff, fg_threshold)
+        if ref != bbox:
+            w_ref = (ref[2] - ref[0]) if orientation == "vertical" else (ref[3] - ref[1])
+            w_box = (x1 - x0) if orientation == "vertical" else (y1 - y0)
+            if w_ref <= 0.6 * w_box:
+                bbox = ref
         if extend:
             bbox = _extend_along_axis(diff, bbox, orientation, thr=fg_threshold * 0.5)
+        if from_clip and fallback is None:
+            # the gradient-like part of a component merged with a map is taken only when no separate component of
+            # comparable length follows: the smooth edge of a map beside the bar refines to a few gradient-like
+            # lines as well, and the bar is then another, smaller component inside the box
+            fallback = (bbox, orientation)
+            continue
+        if fallback is not None:
+            fl = (fallback[0][3] - fallback[0][1]) if fallback[1] == "vertical" else (fallback[0][2] - fallback[0][0])
+            L = (bbox[3] - bbox[1]) if orientation == "vertical" else (bbox[2] - bbox[0])
+            if orientation != fallback[1] or L < 0.5 * fl:
+                continue
         return bbox, orientation
-    return None
+    return fallback
 
 
 def sample_strip(crop_rgb, bbox, orientation, n=256, band=0.5):

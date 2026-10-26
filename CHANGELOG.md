@@ -19,6 +19,13 @@ Added
 - `--conf`, `--reader`, `--unit-mode`, `--pairing-mode` on `scripts/run_figure.py`, `benchmark/tier2_evaluate.py`
   and `benchmark/tier3_evaluate.py`; `--reader` on `benchmark/ocr_synthetic_test.py`.
 - `results/detection_eval_v13.json` (submitted detector) next to `results/detection_eval.json` (released).
+- Reader cycle 2 (after the second human verification): the sign of a tick label is decided from the ink
+  next to its digits (tick marks are no longer read as minus signs, lost minus signs are recovered), units
+  are accepted only at the bar's end, next to a label or beside the label column (never from a
+  neighbouring axis), the gradient region is chosen among several candidates and confined to the lines
+  that behave like a gradient, thin strips are grown through tick marks, and a map takes the colour bar laid
+  out as its own before any other (bars between two maps resolved by the figure's convention; short bars;
+  column-wise stack evidence). `tests/test_reader2_cycle2.py`.
 - `afmquant/colorbar.py`, `afmquant/ocr.py`, `afmquant/pairing.py`, `afmquant/pipeline.py`:
   colour-bar strip extraction, tick-label OCR (RapidOCR / PP-OCRv4) and scale fitting,
   map–colour-bar pairing and the end-to-end `FigurePipeline` (these stages were described
@@ -38,7 +45,7 @@ Added
   shows, Tier 2 metrics); `benchmark/tier3_selftest.py`: synthetic self-test of that tool.
 - `reproduce_all.py`: one command regenerates every number of the manuscript
   (`results/numbers_manifest.json`).
-- `tests/`: 49 unit tests; `requirements.lock`: exact versions.
+- `tests/`: 77 unit tests; `requirements.lock`: exact versions.
 
 Changed
 - Defaults of `FigurePipeline` and of every script are the released configuration (detector v15 at
