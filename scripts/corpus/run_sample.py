@@ -23,6 +23,7 @@ CONFIGS = {"baseline": dict(pairing_mode="nearest", unit_mode="raw", reader="v1"
            "final4": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, weights=RUNS / "v15" / "weights" / "best.pt"),
            "final5": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, weights=RUNS / "v15" / "weights" / "best.pt"),
            "final6": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final7": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, weights=RUNS / "v15" / "weights" / "best.pt"),
            "final_v13": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", weights=RUNS / "v13" / "weights" / "best.pt")}
 
 

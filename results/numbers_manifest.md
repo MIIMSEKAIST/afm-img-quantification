@@ -430,7 +430,7 @@
   "orientation_ok_frac": 1.0,
   "success_2pct_frac": 0.9833,
   "success_5pct_frac": 0.9833,
-  "unit_ok_frac": 0.9167,
+  "unit_ok_frac": 0.8833,
   "end_error_median_pct": 0.206,
   "end_error_p90_pct": 0.663,
   "end_error_p95_pct": 0.856,

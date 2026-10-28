@@ -17,6 +17,10 @@ from _paths import ROOT, REPO  # noqa: E402,F401  (workspace from AFM_DB_ROOT; s
 
 S = ROOT / "revision" / "detection" / "yield_sample_v3"
 CFG = sys.argv[1] if len(sys.argv) > 1 else "final6"
+GALLERY_ONLY = "--gallery-only" in sys.argv          # a later run: rebuild gallery_v3_<cfg>/ only, keep the rated workbook
+if "--sample-dir" in sys.argv:                         # another single-pipeline sample (e.g. yield_sample_v4)
+    S = Path(sys.argv[sys.argv.index("--sample-dir") + 1])
+TAG = S.name.rsplit("_", 1)[-1] if S.name.rsplit("_", 1)[-1].startswith("v") else "v3"
 HEAD = {"info": PatternFill("solid", fgColor="DDDDDD"), "B": PatternFill("solid", fgColor="F8CBAD")}
 GREY = PatternFill("solid", fgColor="EDEDED")
 PER_PAGE = 40
@@ -57,14 +61,15 @@ for i, sid in enumerate(sel, start=2):
         if name == "held_wrongly":
             dvi.add(c)
 ws.freeze_panes = "C2"; ws.auto_filter.ref = ws.dimensions
-wb.save(S / "verification_v3.xlsx")
+if not GALLERY_ONLY:
+    wb.save(S / f"verification_{TAG}.xlsx")
 
-gal = S / "gallery_v3"; gal.mkdir(exist_ok=True)
+gal = S / (f"gallery_{TAG}_{CFG}" if GALLERY_ONLY else f"gallery_{TAG}"); gal.mkdir(exist_ok=True)
 STYLE = ("<html><head><meta charset='utf-8'><style>body{font-family:sans-serif;font-size:12px} .c{border-bottom:2px solid #999;padding:8px} "
          "img{max-width:1000px;max-height:620px;border:1px solid #ccc} .cap{max-width:1000px;color:#444}</style></head><body>")
 for pg in range(0, len(sel), PER_PAGE):
     chunk = sel[pg:pg + PER_PAGE]
-    html = [STYLE, f"<h3>third sample — page {pg // PER_PAGE + 1} (공개 파이프라인 {CFG}; 초록 = 정량화, 주황 = 보류, 빨강 = 실패, 자홍 = 컬러바와 읽은 범위, 선 = 짝)</h3>"]
+    html = [STYLE, f"<h3>sample {TAG} — page {pg // PER_PAGE + 1} (공개 파이프라인 {CFG}; 초록 = 정량화, 주황 = 보류, 빨강 = 실패, 자홍 = 컬러바와 읽은 범위, 선 = 짝)</h3>"]
     for sid in chunk:
         n_held = int(res.loc[sid, "n_held"]) + int(res.loc[sid, "n_own_unread"])
         html.append(f"<div class='c'><b>{sid}</b> &nbsp; ok={int(res.loc[sid, 'n_panels_ok'])} 보류={n_held}"
@@ -73,10 +78,10 @@ for pg in range(0, len(sel), PER_PAGE):
     html.append("</body></html>")
     (gal / f"page_{pg // PER_PAGE + 1:02d}.html").write_text("\n".join(html), encoding="utf-8")
 n_pages = (len(sel) + PER_PAGE - 1) // PER_PAGE
-guide = f"""# 사람 검증 안내 — 세 번째 표본 (최종 파이프라인의 held-out 시험)
+guide = f"""# 사람 검증 안내 — 표본 {TAG} (최종 파이프라인의 held-out 시험)
 
-- 입력 파일: `verification_v3.xlsx` (엑셀로 열어 입력하고 그대로 저장)
-- 그림: `gallery_v3\\page_01.html` … `page_{n_pages:02d}.html` ({PER_PAGE}장씩, 총 {len(sel)}장). 그림마다 최종 파이프라인({CFG})의 결과 하나만 있습니다.
+- 입력 파일: `verification_{TAG}.xlsx` (엑셀로 열어 입력하고 그대로 저장)
+- 그림: `gallery_{TAG}\\page_01.html` … `page_{n_pages:02d}.html` ({PER_PAGE}장씩, 총 {len(sel)}장). 그림마다 최종 파이프라인({CFG})의 결과 하나만 있습니다.
 - 대상: 최종 파이프라인이 숫자로 바꾼(초록 상자가 있는) 그림만. 짝과 범위만 채점합니다. 이 표본은 개선에 한 번도 쓰지 않았으므로, 여기서 나온 수치가 그대로 논문의 held-out 수치가 됩니다. 고치지 않고 그대로 보고합니다.
 - 예상 시간: 그림당 1분 안팎 ({len(sel)}장 ≈ {max(10, round(len(sel) * 1.0))}분)
 
@@ -98,7 +103,8 @@ guide = f"""# 사람 검증 안내 — 세 번째 표본 (최종 파이프라인
 | `note` | n이면 이유를 짧게 (단위 / 부호 / 범위 / 짝), 특이사항 | 자유 |
 
 - 자홍 범위가 눈금보다 조금 넓은 것은 정상(y)입니다. 자릿수·부호·단위가 틀리면 n입니다. 단위가 "None"이면 단위만 비교하지 않고 숫자만 봅니다.
-- 끝나면 Claude에게 "검증 v3 끝"이라고 알려 주세요.
+- 끝나면 Claude에게 "검증 {TAG} 끝"이라고 알려 주세요.
 """
-(S / "검증_안내_v3.md").write_text(guide, encoding="utf-8")
-print(f"written verification_v3.xlsx ({len(sel)} rows), gallery_v3/page_01..{n_pages:02d}.html, 검증_안내_v3.md")
+if not GALLERY_ONLY:
+    (S / f"검증_안내_{TAG}.md").write_text(guide, encoding="utf-8")
+print(f"written {'gallery only' if GALLERY_ONLY else f'verification_{TAG}.xlsx ({len(sel)} rows)'}: {gal.name}/page_01..{n_pages:02d}.html" + ("" if GALLERY_ONLY else f", 검증_안내_{TAG}.md"))

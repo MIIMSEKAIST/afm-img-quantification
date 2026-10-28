@@ -35,8 +35,8 @@ from .colorbar import extract_strip
 
 _NUM = r"[-−–+]?\d+(?:[.,]\d+)?"
 _RE_NUMBER = re.compile(rf"^\s*({_NUM})\s*$")
-_RE_SCI = re.compile(rf"^\s*({_NUM})\s*(?:[eE]|[x×]\s*10\s*\^?\s*)([-−–+]?\d+)\s*$")
-_RE_OFFSET = re.compile(r"^\s*(?:1\s*[eE]\s*([-+]?\d+)|[x×]\s*10\s*\^?\s*([-+]?\d+)|10\s*\^\s*([-+]?\d+))\s*$")
+_RE_SCI = re.compile(rf"^\s*({_NUM})\s*(?:[eE]|[xX×]\s*10\s*\^?\s*)([-−–+]?\d+)\s*$")
+_RE_OFFSET = re.compile(r"^\s*(?:1\s*[eE]\s*([-+]?\d+)|[xX×]\s*10\s*\^?\s*([-+]?\d+)|10\s*\^\s*([-+]?\d+))\s*$")
 _RE_UNIT = re.compile(r"[A-Za-zµμ°]")
 _SUPERSCRIPT = str.maketrans("⁰¹²³⁴⁵⁶⁷⁸⁹⁻",
                              "0123456789-")
@@ -108,7 +108,9 @@ _UNIT_CASE = {"mv": "mV", "kpa": "kPa", "mpa": "MPa", "gpa": "GPa", "khz": "kHz"
               "mev": "meV", "na": "nA", "ua": "µA", "ma": "mA", "nn": "nN", "pn": "pN", "un": "µN", "uv": "µV", "kv": "kV",
               "deg": "deg", "um": "µm", "μm": "µm", "ns": "ns", "us": "µs", "ms": "ms"}
 # whole-token confusions observed on the corpus sample (small 'µm' / 'nm' labels)
-_UNIT_CONFUSION = {"uu": "µm", "ym": "µm", "urn": "µm", "mum": "µm", "rm": "nm", "nrn": "nm", "nrm": "nm", "my": "mV"}
+_UNIT_CONFUSION = {"ym": "µm", "urn": "µm", "mum": "µm", "rm": "nm", "nrn": "nm", "nrm": "nm", "my": "mV"}
+# tokens the OCR produces for more than one unit in small print ('uu' for nm and µm, 'mm' for nm): unknown
+_AMBIGUOUS_UNITS = {"uu", "mm"}
 
 
 def canonical_unit(token):
@@ -118,6 +120,8 @@ def canonical_unit(token):
     t = re.sub(r"\s+", "", str(token).strip().strip("()[]").replace("μ", "µ")).replace("²", "2").replace("^2", "2")
     if not t:
         return None
+    if t.lower() in _AMBIGUOUS_UNITS or t == "NA":       # 'NA' in a label column means not available; nanoampere is written nA
+        return None
     lex = {k.replace("²", "2"): k for k in UNIT_LEXICON}
     if t in lex:
         return lex[t]
@@ -125,8 +129,12 @@ def canonical_unit(token):
         return _UNIT_CASE[t.lower()]
     if t.lower() in _UNIT_CONFUSION:
         return _UNIT_CONFUSION[t.lower()]
-    tail = re.split(r"[,:;()\s]", str(token).strip())[-1] if str(token).strip() else ""
-    if tail and tail != str(token).strip():
+    raw = str(token).strip()
+    tail = re.split(r"[,:;()\s]", raw)[-1] if raw else ""
+    if tail and tail != raw:
+        head = raw[:len(raw) - len(tail)]
+        if "log" in raw.lower() or "/" in head:                # 'Log(E/MPa)', 'kcounts/80 ms': a composite, not a unit
+            return None
         return canonical_unit(tail)
     return None
 

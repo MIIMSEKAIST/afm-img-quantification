@@ -26,6 +26,12 @@ Added
   that behave like a gradient, thin strips are grown through tick marks, and a map takes the colour bar laid
   out as its own before any other (bars between two maps resolved by the figure's convention; short bars;
   column-wise stack evidence). `tests/test_reader2_cycle2.py`.
+- Reader, last round (after the third human verification): unit tokens that the OCR produces for more
+  than one unit in small print ('uu', 'mm', 'NA') are reported as unknown, composite or logarithmic
+  titles yield no unit, a unit next to a label must follow the number on the label's side, the rotated
+  band beside the labels stops half-way to the next panel, exponent offsets written with a capital X and
+  labels with a thousands suffix are read, and superscript powers of ten are withheld as a logarithmic
+  scale. `tests/test_reader2_cycle3.py`.
 - `afmquant/colorbar.py`, `afmquant/ocr.py`, `afmquant/pairing.py`, `afmquant/pipeline.py`:
   colour-bar strip extraction, tick-label OCR (RapidOCR / PP-OCRv4) and scale fitting,
   map–colour-bar pairing and the end-to-end `FigurePipeline` (these stages were described
@@ -45,7 +51,7 @@ Added
   shows, Tier 2 metrics); `benchmark/tier3_selftest.py`: synthetic self-test of that tool.
 - `reproduce_all.py`: one command regenerates every number of the manuscript
   (`results/numbers_manifest.json`).
-- `tests/`: 77 unit tests; `requirements.lock`: exact versions.
+- `tests/`: 82 unit tests; `requirements.lock`: exact versions.
 
 Changed
 - Defaults of `FigurePipeline` and of every script are the released configuration (detector v15 at

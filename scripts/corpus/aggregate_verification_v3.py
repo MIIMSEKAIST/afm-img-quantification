@@ -27,11 +27,16 @@ def ci(vals, B=4000, seed=0):
 
 
 def main():
+    global S
     ap = argparse.ArgumentParser()
-    ap.add_argument("--sheet", type=Path, default=S / "verification_v3.xlsx")
+    ap.add_argument("--sheet", type=Path, default=None, help="rating workbook (default verification_<tag>.xlsx)")
     ap.add_argument("--config", default="final6")
+    ap.add_argument("--sample-dir", type=Path, default=S, help="yield_sample_v3 (default) or yield_sample_v4")
     a = ap.parse_args()
-    sheet = a.sheet if a.sheet.is_absolute() else S / a.sheet
+    S = a.sample_dir
+    tag = S.name.rsplit("_", 1)[-1]
+    sheet = a.sheet if a.sheet else S / f"verification_{tag}.xlsx"
+    sheet = sheet if sheet.is_absolute() else S / sheet
     v = pd.read_excel(sheet, sheet_name="verify", dtype=str).fillna("").set_index("sample_id")
     r = pd.read_csv(S / f"{a.config}_results.csv", keep_default_na=False).set_index("sample_id")
     man = pd.read_csv(S / "sample_manifest.csv").set_index("sample_id")
@@ -55,9 +60,9 @@ def main():
                         "panels_held_in_rated": int(held_per_fig.loc[[s for s in v.index if s in r.index]].sum()),
                         "panels_held_wrongly": int(wrong_held.sum()), "figures_with_held": int((r.n_held > 0).sum())}}
     RES.mkdir(exist_ok=True)
-    (RES / "verification_v3_summary.json").write_text(json.dumps(out, indent=1, default=float), encoding="utf-8")
+    (RES / f"verification_{tag}_summary.json").write_text(json.dumps(out, indent=1, default=float), encoding="utf-8")
     e = out["released"]
-    md = ["# 세 번째 표본(1,000장) 사람 검증 결과 — 최종 파이프라인(held-out)", "",
+    md = [f"# 표본 {tag}({out['figures']}장) 사람 검증 결과 — 최종 파이프라인(held-out)", "",
           f"그림 {out['figures']}장 (읽을 수 없는 이미지 {out['unreadable']}장), 맵 검출 {out['detected']}장, 캡션 AFM 키워드 {100 * out['caption_afm_kw_frac']:.1f}%. "
           f"시트 {sheet.name}. 채점 누락 {e['ratings_missing']}", "",
           "| | 최종 파이프라인 |", "|---|---|",
@@ -67,7 +72,7 @@ def main():
           f"| 범위 모두 정확 | {e['scale_correct']}/{e['figures_rated']} ({100 * e['scale_correct_frac']:.0f}%) |",
           f"| **둘 다 정확** | **{e['fully_correct']}/{e['figures_rated']} ({100 * e['fully_correct_frac']:.0f}%, CI {e['fully_ci']})** |",
           f"| 잘못 보류된 패널 (사람 판정) | {e['panels_held_wrongly']} / {e['panels_held_in_rated']} |"]
-    (NOTES / "검증_v3_결과.md").write_text("\n".join(md) + "\n", encoding="utf-8")
+    (NOTES / f"검증_{tag}_결과.md").write_text("\n".join(md) + "\n", encoding="utf-8")
     print("\n".join(md))
 
 

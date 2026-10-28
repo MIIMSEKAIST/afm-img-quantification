@@ -1033,6 +1033,25 @@ def _apply_ink_signs(crop, chosen, bbox, vertical, text_h):
 
 
 # ----------------------------------------------------------------------------------------------- main reader
+_RE_KMULT = re.compile(r"^[-+]?\d+(?:\.\d+)?k$")
+
+
+def _k_multiplier(chosen):
+    """True when every chosen label is written with a trailing 'k' (3k, 9k, 15k, 21k): a thousands multiplier."""
+    texts = [re.sub(r"\s", "", str(c.get("text", ""))) for c in chosen if c.get("num") is not None]
+    return len(texts) >= 2 and all(_RE_KMULT.match(t) for t in texts)
+
+
+def _pow10_labels(chosen):
+    """True when the column labels are powers of ten written as superscripts and read as '100', '101', ... (two or
+    more distinct exponents and nothing else in the column): a logarithmic scale."""
+    texts = [re.sub(r"\s", "", str(c.get("text", ""))) for c in chosen
+             if c.get("num") is not None and c.get("kind") in ("col", "inside")]
+    if len(texts) < 2 or not all(_RE_POW10.match(t) for t in texts):
+        return False
+    return len({t[-1] for t in texts}) >= 2
+
+
 def _attempt(items, bbox, ext, vertical, det_box, other_bars, map_boxes, core=None, crop=None):
     if core is not None and (ext[0] > 0 or ext[1] > 0):
         bbox = cut_at_column_text(items, bbox, core, vertical)
@@ -1058,6 +1077,10 @@ def _attempt(items, bbox, ext, vertical, det_box, other_bars, map_boxes, core=No
             chosen, how = chosen_all, how_all
     if crop is not None and chosen:
         _apply_ink_signs(crop, chosen, bbox, vertical, text_h)
+    if chosen and _k_multiplier(chosen):                    # '3k' ... '21k': a thousands multiplier on every label
+        for c in chosen:
+            c["num"] = float(c["num"]) * 1e3
+    log_labels = _pow10_labels(chosen)
     # a nearer column with a single number was skipped in favour of a farther one: the near labels may be unread
     near_skipped = None
     side_chosen = [c for c in chosen if c["side"] != 0]
@@ -1097,6 +1120,8 @@ def _attempt(items, bbox, ext, vertical, det_box, other_bars, map_boxes, core=No
         if 2 <= len(keep) < len(anchors):
             anchors = keep
     fit = _fit(anchors, scale)
+    if log_labels:
+        fit = {"ok": False, "reason": "logarithmic colour scale (powers of ten)", "n_anchors": len(anchors), "scale": "log"}
     new_bbox = (bbox[0], int(round(new0)), bbox[2], int(round(new1))) if vertical else (int(round(new0)), bbox[1], int(round(new1)), bbox[3])
     return dict(fit=fit, anchors=anchors, chosen=chosen, how=how, unit=unit, scale=scale, bbox=new_bbox, text_h=text_h,
                 cands=cands, items=items, near_skipped=near_skipped, dropped=list(getattr(own_items, "last_dropped", [])),
@@ -1194,6 +1219,20 @@ def _unit_near_labels(crop, ocr, items, best, bbox, vertical, det_box, other_bar
     cands = []
     chosen_all = list(best.get("chosen") or [])
     dx0, dy0, dx1, dy1 = det_box
+    # a parenthesised unit slot of the bar's title at an end of the bar that is not a readable unit ('Length (uu)'):
+    # the bar's unit is unknown; the band beside the labels is not consulted for it
+    end_slot_unreadable = False
+    for it in items:
+        txt = str(it["text"]).strip()
+        if "(" not in txt or ")" not in txt:
+            continue
+        u = parse_unit(txt)
+        if u is None or accept(u):
+            continue
+        a0, a1, c0, c1 = _ac(_item_bbox(it), vertical)
+        hb = max(4.0, a1 - a0)
+        if abs((c0 + c1) / 2 - (sc0 + sc1) / 2) <= 0.5 * w + 4 and max(0.0, sa0 - a1, a0 - sa1) <= max(2.5 * hb, 0.12 * L):
+            end_slot_unreadable = True
     ex, ey = 0.1 * (dx1 - dx0), 0.1 * (dy1 - dy0)
     for it in items:
         u = parse_unit(it["text"])
@@ -1222,11 +1261,17 @@ def _unit_near_labels(crop, ocr, items, best, bbox, vertical, det_box, other_bar
             elif in_col and (beyond <= 0.0 or near_label):
                 kind = "inline"
         if kind is None:
-            # a unit written next to one of the labels ('72.5' | 'nm'): the same text row, a small gap
+            # a unit written next to one of the labels ('72.5' | 'nm'): the same text row, a small gap, after the
+            # number and on the label's side of the strip (the unit of an axis below the map shares the row of the
+            # bar's lowest label but lies across the strip from it)
+            scx = (sc0 + sc1) / 2
             for c in chosen_all:
                 lx0, ly0, lx1, ly1 = c["bbox"]
                 row = min(iy1, ly1) - max(iy0, ly0) >= 0.5 * min(iy1 - iy0, ly1 - ly0)
-                if row and max(ix0 - lx1, lx0 - ix1) <= 1.0 * max(th, iy1 - iy0):
+                after = ix0 >= lx1 - 0.5 * th
+                same_side = (not vertical) or c["side"] == 0 or ((it["cx"] > scx) == (c["side"] > 0))
+                within = sa0 - 0.1 * L <= a0 and a1 <= sa1 + 0.1 * L          # a title along the bar on its far side
+                if row and after and (same_side or within) and max(ix0 - lx1, lx0 - ix1) <= 1.0 * max(th, iy1 - iy0):
                     kind = "inline"
                     break
         if kind is None:
@@ -1242,7 +1287,7 @@ def _unit_near_labels(crop, ocr, items, best, bbox, vertical, det_box, other_bar
         cands.append((u, {"end": 0, "inline": 1, "beside": 2}[kind], -float(it["conf"]), d_strip))
     if cands:
         return min(cands, key=lambda t: (t[1], t[2], t[3]))[0]
-    if not vertical or side is None or outer is None:
+    if end_slot_unreadable or not vertical or side is None or outer is None:
         return None
     # a second column of numbers on the same side (the tick labels of a neighbouring axis) makes a rotated text
     # beside the labels ambiguous - it is probably that axis's title - so no unit is taken from the band then
@@ -1270,19 +1315,22 @@ def _unit_near_labels(crop, ocr, items, best, bbox, vertical, det_box, other_bar
         if oy1 <= by0 or oy0 >= by1:
             continue
         if side > 0 and ox0 >= outer:
-            bx1 = min(bx1, ox0)
+            bx1 = min(bx1, outer + 0.5 * (ox0 - outer))       # the title of that map's axis sits in the nearer half
         elif side < 0 and ox1 <= outer:
-            bx0 = max(bx0, ox1)
+            bx0 = max(bx0, outer - 0.5 * (outer - ox1))
     bx0, by0, bx1, by1 = int(max(0, bx0)), int(max(0, by0)), int(min(W, bx1)), int(min(H, by1))
     if bx1 - bx0 < 6 or by1 - by0 < 12:
         return None
     sub_img = np.ascontiguousarray(crop[by0:by1, bx0:bx1])
-    found = []
+    found, texts = [], []
     for k in (-1, 1):
         for it in ocr.read(np.ascontiguousarray(np.rot90(sub_img, k=k))):
+            texts.append(str(it["text"]))
             u = parse_unit(it["text"])
             if accept(u):
                 found.append((u, float(it["conf"])))
+    if any("log" in t.lower() or ("/" in t and canonical_unit(t) is None) for t in texts):
+        return None                                     # 'Log(E/MPa)', 'kcounts/80 ms': a quantity, not the bar's unit
     return max(found, key=lambda t: t[1])[0] if found else None
 
 
