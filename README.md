@@ -46,6 +46,7 @@ afmquant/            importable package
                        ink-based sign decision, unit placement rules, laid-out-bar candidates
                        ink-based sign decision, unit placement rules, laid-out-bar candidates
                        ink-based sign decision, unit placement rules, laid-out-bar candidates
+                       ink-based sign decision, unit placement rules, laid-out-bar candidates
   pairing.py           map <-> colour-bar pairing by gamut compatibility and layout evidence (ambiguous panels are held)
   pipeline.py          FigurePipeline: whole figure -> detected panels -> value maps + QC record
   afm_filter.py        caption / unit based technique filter (AFM vs other colour-mapped techniques)
