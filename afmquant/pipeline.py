@@ -13,33 +13,12 @@ and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
 configuration of the submitted manuscript is reproduced with the v13 weights
 and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
 
-The defaults are the released configuration of the revised manuscript: the
-fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
-reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
-and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
-configuration of the submitted manuscript is reproduced with the v13 weights
-and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
-
-The defaults are the released configuration of the revised manuscript: the
-fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
-reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
-and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
-configuration of the submitted manuscript is reproduced with the v13 weights
-and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
-
-The defaults are the released configuration of the revised manuscript: the
-fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
-reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
-and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
-configuration of the submitted manuscript is reproduced with the v13 weights
-and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
-
-The defaults are the released configuration of the revised manuscript: the
-fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
-reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
-and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
-configuration of the submitted manuscript is reproduced with the v13 weights
-and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
+The detector's colour-bar class is a proposal stage: at confidence 0.25 it also
+returns boxes that are not colour bars (typically a column of axis tick labels
+beside an image). A box is used as a colour bar only when the reader finds a
+solid colour-gradient strip inside it and at least two tick labels that fit one
+linear scale; every other box stays in ``result["bars"]`` with ``ok = False``
+and the reason, and no panel is quantified from it.
 
     from afmquant.pipeline import FigurePipeline
     pipe = FigurePipeline("detection/weights/afm_detect_best.pt")

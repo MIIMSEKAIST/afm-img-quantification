@@ -21,7 +21,8 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant.pipeline import FigurePipeline  # noqa: E402
 
-COL = {"map": (0, 200, 0), "bar": (220, 0, 220), "ok": (0, 200, 0), "fail": (0, 0, 230), "held": (0, 140, 255)}   # held = orange
+COL = {"map": (0, 200, 0), "bar": (220, 0, 220), "ok": (0, 200, 0), "fail": (0, 0, 230), "held": (0, 140, 255),   # held = orange
+       "cand": (120, 120, 120)}                                    # colour-bar candidate that was not used
 
 
 def iter_images(p: Path):
@@ -37,13 +38,32 @@ def iter_images(p: Path):
         yield p
 
 
+def _dashed_rectangle(img, p0, p1, colour, thickness=1, dash=6):
+    (x0, y0), (x1, y1) = p0, p1
+    for (ax, ay), (bx, by) in (((x0, y0), (x1, y0)), ((x1, y0), (x1, y1)), ((x1, y1), (x0, y1)), ((x0, y1), (x0, y0))):
+        n = max(1, int(max(abs(bx - ax), abs(by - ay)) // (2 * dash)))
+        for k in range(n + 1):
+            t0, t1 = k / (n + 0.5), min(1.0, (k + 0.5) / (n + 0.5))
+            cv2.line(img, (int(ax + (bx - ax) * t0), int(ay + (by - ay) * t0)),
+                     (int(ax + (bx - ax) * t1), int(ay + (by - ay) * t1)), colour, thickness, cv2.LINE_AA)
+
+
 def draw_overlay(image_rgb, result):
+    """Boxes, pairing and status of one figure. The detector's colour-bar class is a proposal stage: a box is drawn as
+    a colour bar (magenta, with the range read) only when a quantified panel was read from it. The other candidates,
+    i.e. boxes in which the reader found no colour strip (for example a column of axis tick labels) or no readable
+    scale, and bars that were read but paired with no panel, are drawn grey and dashed with the reason."""
     img = cv2.cvtColor(image_rgb.copy(), cv2.COLOR_RGB2BGR)
-    for b in result["bars"]:
+    used = {p["bar_idx"] for p in result["panels"] if p["status"] == "ok" and p["bar_idx"] is not None}
+    for i, b in enumerate(result["bars"]):
         x0, y0, x1, y1 = [int(v) for v in b["box"]]
-        cv2.rectangle(img, (x0, y0), (x1, y1), COL["bar"], 2)
-        txt = f"{b['vmin']:.3g}..{b['vmax']:.3g} {b.get('unit') or ''}" if b.get("ok") else f"bar: {b.get('reason')}"
-        cv2.putText(img, txt, (x0, max(12, y0 - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, COL["bar"], 1, cv2.LINE_AA)
+        if i in used:
+            cv2.rectangle(img, (x0, y0), (x1, y1), COL["bar"], 2)
+            txt, colour = f"{b['vmin']:.3g}..{b['vmax']:.3g} {b.get('unit') or ''}", COL["bar"]
+        else:
+            _dashed_rectangle(img, (x0, y0), (x1, y1), COL["cand"])
+            txt, colour = (f"not used: {b.get('reason')}" if not b.get("ok") else "read, not paired"), COL["cand"]
+        cv2.putText(img, txt, (x0, max(12, y0 - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, colour, 1, cv2.LINE_AA)
     for i, p in enumerate(result["panels"]):
         x0, y0, x1, y1 = [int(v) for v in p["map_box"]]
         ok = p["status"] == "ok"
@@ -53,7 +73,7 @@ def draw_overlay(image_rgb, result):
         if ok:
             label += f" valid={p['qc']['valid_pixel_ratio']:.2f}"
         cv2.putText(img, label, (x0 + 3, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.45, colour, 1, cv2.LINE_AA)
-        if p["bar_idx"] is not None:
+        if ok and p["bar_idx"] is not None:
             bx0, by0, bx1, by1 = [int(v) for v in result["bars"][p["bar_idx"]]["box"]]
             cv2.line(img, ((x0 + x1) // 2, (y0 + y1) // 2), ((bx0 + bx1) // 2, (by0 + by1) // 2),
                      COL["bar"], 1, cv2.LINE_AA)
