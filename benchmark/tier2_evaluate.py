@@ -126,6 +126,8 @@ def main():
     ap.add_argument("--reader", default="v2", choices=["v1", "v2"])
     ap.add_argument("--conf", type=float, default=0.25, help="detector confidence threshold (0.5 in the submitted version)")
     ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
+    ap.add_argument("--end-labels", default="verbatim", choices=["fit", "verbatim"], help="'fit' before the last change")
+    ap.add_argument("--crop", default="panel", choices=["box", "panel"], help="'box' in the submitted version and before the last change")
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -135,8 +137,7 @@ def main():
     ocr = ColorbarOCR()
     # detection + colour-bar reading are done once; only the lookup is repeated per colour space
     pipe0 = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_spaces[0], ocr=ocr, pairing_mode=args.pairing_mode,
-                           reader=args.reader, unit_mode=args.unit_mode)
-    from afmquant.engine import quantify_map  # noqa: E402
+                           reader=args.reader, unit_mode=args.unit_mode, end_labels=args.end_labels, crop=args.crop)
     if args.overlay_dir:
         args.overlay_dir.mkdir(parents=True, exist_ok=True)
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -165,10 +166,9 @@ def main():
                 for p in res0["panels"]:
                     q = dict(p)
                     if p["value_map"] is not None:
-                        mx0, my0, mx1, my1 = p["map_crop_box"]
                         bar = res0["bars"][p["bar_idx"]]
-                        vm, valid, qc = quantify_map(image[my0:my1, mx0:mx1], bar["strip"], bar["vmin"],
-                                                     bar["vmax"], color_space=cs, mask_space="cielab")
+                        vm, valid, qc = pipe0.quantify_crop(image, p["map_crop_box"], bar,
+                                                            [b["box"] for b in res0["bars"] if b.get("ok")], color_space=cs)
                         q["value_map"], q["valid_mask"] = vm, valid
                         q["qc"] = {**p["qc"], **{k: v for k, v in qc.items()}}
                         q["status"] = "ok" if qc["valid_pixel_ratio"] >= 0.5 else "low_valid_ratio"

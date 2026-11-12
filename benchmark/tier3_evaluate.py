@@ -840,6 +840,8 @@ def main():
     ap.add_argument("--reader", default="v2", choices=["v1", "v2"])
     ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
     ap.add_argument("--pairing-mode", default="evidence", choices=["nearest", "evidence"])
+    ap.add_argument("--end-labels", default="verbatim", choices=["fit", "verbatim"], help="'fit' before the last change")
+    ap.add_argument("--crop", default="panel", choices=["box", "panel"], help="'box' in the submitted version and before the last change")
     ap.add_argument("--no-crop-search", action="store_true", help="match full scans only")
     ap.add_argument("--ambiguous-margin", type=float, default=0.05,
                     help="score margin to the best other FILE below which a match is flagged ambiguous")
@@ -870,7 +872,7 @@ def main():
     if args.no_crop_search:
         params.crop_trigger, params.crop_skip_contrast = -1.0, -1.0
     pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space, ocr=ColorbarOCR(),
-                          reader=args.reader, unit_mode=args.unit_mode, pairing_mode=args.pairing_mode)
+                          reader=args.reader, unit_mode=args.unit_mode, pairing_mode=args.pairing_mode, end_labels=args.end_labels, crop=args.crop)
     all_rows, all_details, infos = [], [], {}
     for paper, src in papers.items():
         log(f"\n=== {paper} ({src.name}) ===")

@@ -29,7 +29,8 @@ tick position. This reader addresses each failure by a specific rule:
    unit ("Onm") are corrected.
 
 The scale is fitted as before (:func:`afmquant.ocr.fit_scale`); two end labels alone are accepted when a third
-label disagrees. The unit is taken from the labels of the chosen column or the unit text at the bar
+label disagrees. With ``end_labels="verbatim"`` (the released default of the pipeline) an end that carries its own
+label takes that label's value instead of the fitted one (:func:`verbatim_ends`). The unit is taken from the labels of the chosen column or the unit text at the bar
 (lexicon-constrained when ``unit_mode="lexicon"``).
 """
 from __future__ import annotations
@@ -1334,9 +1335,32 @@ def _unit_near_labels(crop, ocr, items, best, bbox, vertical, det_box, other_bar
     return max(found, key=lambda t: t[1])[0] if found else None
 
 
-def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit_mode="raw"):
+def verbatim_ends(fit, anchors, tol=0.05):
+    """End labels taken as written (``end_labels="verbatim"``, revision R1, last change). An anchor that the reader placed
+    at an end of the strip (position 0 or 1: a label beyond the end, or within about a text height of it) gives that end
+    its own value instead of the value of the line fitted through all labels, when the two agree within ``tol`` of the
+    span; a label far off the line is an outlier that the fit rejected and is not used. Why: AFM software writes the
+    range of the data at the ends of the bar (0.00 / 354.88 nm), and the least-squares line through slightly misplaced
+    label positions turned such ranges into -3.47..358.3. Returns the fit, updated when an end changed."""
+    if not fit.get("ok") or fit.get("sign_repaired") or fit.get("end_labels_only") or fit.get("scale") == "log":
+        return fit
+    sc = float(fit.get("offset_scale") or 1.0)
+    s, e = float(fit["value_at_start"]), float(fit["value_at_end"])
+    span = abs(e - s) + 1e-12
+    e0 = {float(a[1]) * sc for a in anchors if a[0] == 0.0 and abs(float(a[1]) * sc - s) <= tol * span}
+    e1 = {float(a[1]) * sc for a in anchors if a[0] == 1.0 and abs(float(a[1]) * sc - e) <= tol * span}
+    s2 = next(iter(e0)) if len(e0) == 1 else s
+    e2 = next(iter(e1)) if len(e1) == 1 else e
+    if s2 == s and e2 == e:
+        return fit
+    return {**fit, "value_at_start": s2, "value_at_end": e2, "vmin": min(s2, e2), "vmax": max(s2, e2),
+            "start_is_max": s2 > e2, "end_labels_verbatim": [s2 != s, e2 != e]}
+
+
+def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit_mode="raw", end_labels="fit"):
     """crop: padded RGB crop; roi/det_box: detector bar box in crop coordinates; other_bars, map_boxes: the other
-    detected bars and the maps in crop coordinates. Returns a dict with the same keys as read_colorbar."""
+    detected bars and the maps in crop coordinates; end_labels: "fit" or "verbatim" (see verbatim_ends). Returns a dict
+    with the same keys as read_colorbar."""
     H, W = crop.shape[:2]
     vs = verified_strip_bbox(crop, roi, map_boxes)
     if vs is None:
@@ -1447,6 +1471,8 @@ def read_colorbar_v2(crop, ocr, roi, det_box, other_bars, map_boxes, n=256, unit
         best = max(attempts, key=_score)
 
     fit, bbox = best["fit"], best["bbox"]
+    if end_labels == "verbatim":
+        fit = verbatim_ends(fit, best["anchors"])
     sa0, sa1, sc0, sc1 = _ac(bbox, vertical)
     L = sa1 - sa0
     items, unit = best["items"], best["unit"]
@@ -1508,7 +1534,8 @@ def read_bars_v2(pipe, image_rgb, bar_boxes, maps):
             shift = lambda bx: (bx[0] - cx0, bx[1] - cy0, bx[2] - cx0, bx[3] - cy0)
             roi = tuple(int(round(v)) for v in shift(b["xyxy"]))
             r_new = read_colorbar_v2(crop, pipe.ocr, roi, roi, [shift(o) for j, o in enumerate(all_boxes) if j != i],
-                                     [shift(m) for m in map_boxes], unit_mode=pipe.unit_mode)
+                                     [shift(m) for m in map_boxes], unit_mode=pipe.unit_mode,
+                                     end_labels=getattr(pipe, "end_labels", "fit"))
             r_new["crop_box"] = (cx0, cy0, cx1, cy1)
             if r is not None and r.get("ok") and not r_new.get("ok"):
                 break                                            # the regrown crop read worse: keep the earlier result

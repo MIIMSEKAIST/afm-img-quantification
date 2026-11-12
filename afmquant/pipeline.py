@@ -8,10 +8,17 @@ detection is deterministic.
 
 The defaults are the released configuration of the revised manuscript: the
 fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
-reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``)
-and evidence-based map/colour-bar pairing (``pairing_mode="evidence"``). The
-configuration of the submitted manuscript is reproduced with the v13 weights
-and ``conf=0.5, reader="v1", unit_mode="raw", pairing_mode="nearest"``.
+reader (``reader="v2"``) with end labels taken verbatim (``end_labels="verbatim"``),
+lexicon-constrained units (``unit_mode="lexicon"``), evidence-based
+map/colour-bar pairing (``pairing_mode="evidence"``) and the map crop trimmed to
+the panel border with colour-bar pixels excluded (``crop="panel"``, see
+:mod:`afmquant.crop`). The configuration of the submitted manuscript is
+reproduced with the v13 weights and ``conf=0.5, reader="v1", unit_mode="raw",
+pairing_mode="nearest", crop="box"``; the state before the last change (the
+outputs rated in the corpus samples, "final7") with ``end_labels="fit",
+crop="box"``. The last change acts after pairing and reading: it does not
+change which colour bar a map is paired with, and it moves an end value only
+to the end label the reader had already placed at that end.
 
 The detector's colour-bar class is a proposal stage: at confidence 0.25 it also
 returns boxes that are not colour bars (typically a column of axis tick labels
@@ -61,7 +68,7 @@ class FigurePipeline:
     def __init__(self, weights, conf=0.25, iou_merge=0.3, color_space="cielab",
                  mask_space="cielab", distance_threshold=20.0, margin_trim=0.005,
                  bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None,
-                 pairing_mode="evidence", unit_mode="lexicon", reader="v2"):
+                 pairing_mode="evidence", unit_mode="lexicon", reader="v2", end_labels="verbatim", crop="panel"):
         self.weights = str(weights)
         self.conf = conf
         self.iou_merge = iou_merge
@@ -73,6 +80,9 @@ class FigurePipeline:
         self.pairing_mode = pairing_mode          # "nearest" (submitted) | "evidence" (layout or exclusivity required)
         self.unit_mode = unit_mode                # "raw" (submitted) | "lexicon" (canonical SPM unit or unknown)
         self.reader = reader                      # "v1" (submitted) | "v2" (label-column reader, revision R1)
+        self.end_labels = end_labels              # "fit" (line through all labels) | "verbatim" (end labels as written; v2 only)
+        self.crop = crop                          # "box" (detector box) | "panel" (trimmed to the panel, bars masked)
+        assert end_labels in ("fit", "verbatim") and crop in ("box", "panel")
         self.ocr = ocr or ColorbarOCR()
         self.device = device
         self._model = None
@@ -121,6 +131,34 @@ class FigurePipeline:
             out.append(r)
         return out
 
+    # ------------------------------------------------------------------- crop
+    def crop_box(self, image_rgb, map_box, page=None):
+        """Pixel box of the map crop: the detector box (``crop="box"``) or the box trimmed to the panel border
+        (``crop="panel"``), then reduced by ``margin_trim`` on every side."""
+        H, W = image_rgb.shape[:2]
+        x0, y0, x1, y1 = map_box
+        if self.crop == "panel":
+            from .crop import page_mask, refine_box
+            x0, y0, x1, y1 = refine_box(page if page is not None else page_mask(image_rgb), map_box)
+        tx, ty = (x1 - x0) * self.margin_trim, (y1 - y0) * self.margin_trim
+        return (int(max(0, x0 + tx)), int(max(0, y0 + ty)), int(min(W, x1 - tx)), int(min(H, y1 - ty)))
+
+    def quantify_crop(self, image_rgb, crop_box, bar, bar_boxes=(), color_space=None):
+        """Colour lookup of one map crop with the bar's strip and scale; with ``crop="panel"`` the pixels inside the
+        given colour-bar boxes (the bars the reader read) are excluded from the valid pixels."""
+        mx0, my0, mx1, my1 = crop_box
+        kw = dict(self.engine_kw)
+        if color_space is not None:
+            kw["color_space"] = color_space
+        vm, valid, qc = quantify_map(image_rgb[my0:my1, mx0:mx1], bar["strip"], bar["vmin"], bar["vmax"], **kw)
+        if self.crop == "panel" and bar_boxes:
+            from .crop import bar_mask
+            excl = bar_mask(image_rgb.shape, bar_boxes)[my0:my1, mx0:mx1]
+            if excl.any():
+                valid = valid & ~excl
+                qc = {**qc, "valid_pixel_ratio": float(valid.mean()), "bar_pixels_excluded": int(excl.sum())}
+        return vm, valid, qc
+
     # ------------------------------------------------------------------- process
     def process(self, image_rgb, figure_id=None):
         maps, bars_det = self.detect(image_rgb)
@@ -128,13 +166,14 @@ class FigurePipeline:
         pairs = pair_maps_to_bars(image_rgb, [m["xyxy"] for m in maps],
                                   [{"box": b["box"], "strip": b.get("strip"), "orientation": b.get("orientation")} for b in bars],
                                   min_compat=self.min_compat, mode=self.pairing_mode)
+        page = None
+        if self.crop == "panel" and any(p["bar_idx"] is not None for p in pairs):
+            from .crop import page_mask
+            page = page_mask(image_rgb)
+        read_boxes = [b["box"] for b in bars if b.get("ok")]
         H, W = image_rgb.shape[:2]
         panels = []
         for m, p in zip(maps, pairs):
-            x0, y0, x1, y1 = m["xyxy"]
-            tx, ty = (x1 - x0) * self.margin_trim, (y1 - y0) * self.margin_trim
-            mx0, my0 = int(max(0, x0 + tx)), int(max(0, y0 + ty))
-            mx1, my1 = int(min(W, x1 - tx)), int(min(H, y1 - ty))
             panel = {"map_box": m["xyxy"], "map_conf": m["conf"], "bar_idx": p["bar_idx"],
                      "compat": p["compat"], "bar_distance": p["distance"], "pairing_evidence": p.get("evidence"),
                      "status": None, "value_map": None, "valid_mask": None, "qc": {}}
@@ -151,8 +190,8 @@ class FigurePipeline:
                 panel["qc"] = {"bar_reason": bar.get("reason")}
                 panels.append(panel)
                 continue
-            crop = image_rgb[my0:my1, mx0:mx1]
-            vm, valid, qc = quantify_map(crop, bar["strip"], bar["vmin"], bar["vmax"], **self.engine_kw)
+            mx0, my0, mx1, my1 = self.crop_box(image_rgb, m["xyxy"], page)
+            vm, valid, qc = self.quantify_crop(image_rgb, (mx0, my0, mx1, my1), bar, read_boxes)
             qc.update({"vmin": bar["vmin"], "vmax": bar["vmax"], "unit": bar.get("unit"),
                        "n_anchors": bar.get("n_anchors"), "ocr_conf_min": bar["fit"].get("ocr_conf_min"),
                        "fit_residual_rel": bar["fit"].get("residual_rel"),

@@ -43,11 +43,8 @@ afmquant/            importable package
   colorbar.py          colour-bar crop -> gradient region -> 256-sample calibration strip
   ocr.py               tick-label OCR (RapidOCR / PP-OCRv4), label parsing, unit lexicon, scale fitting (submitted reader)
   reader2.py           label-column colour-bar reader (released): geometry-based label selection, verified strip ends,
-                       ink-based sign decision, unit placement rules, laid-out-bar candidates
-                       ink-based sign decision, unit placement rules, laid-out-bar candidates
-                       ink-based sign decision, unit placement rules, laid-out-bar candidates
-                       ink-based sign decision, unit placement rules, laid-out-bar candidates
-                       ink-based sign decision, unit placement rules, laid-out-bar candidates
+                       ink-based sign decision, unit placement rules, laid-out-bar candidates, end labels taken as written
+  crop.py              map crop trimmed to the panel border (page margins removed), colour-bar pixels excluded
   pairing.py           map <-> colour-bar pairing by gamut compatibility and layout evidence (ambiguous panels are held)
   pipeline.py          FigurePipeline: whole figure -> detected panels -> value maps + QC record
   afm_filter.py        caption / unit based technique filter (AFM vs other colour-mapped techniques)

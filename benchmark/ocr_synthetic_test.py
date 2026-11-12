@@ -94,6 +94,8 @@ def main():
     ap.add_argument("--out", type=Path, default=Path("results/ocr_synthetic_test.csv"))
     ap.add_argument("--dump-fail", type=Path, default=None, help="dir to save failed images")
     ap.add_argument("--reader", default="v2", choices=["v1", "v2"], help="label-column reader (v2) or the submitted reader (v1)")
+    ap.add_argument("--end-labels", default="verbatim", choices=["verbatim", "fit"],
+                    help="reader v2: printed end labels taken as written (released) or the fitted line evaluated at the ends")
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     if args.dump_fail:
@@ -106,7 +108,8 @@ def main():
         if args.reader == "v2":
             from afmquant.reader2 import read_colorbar_v2
             H, W = img.shape[:2]
-            res = read_colorbar_v2(img, ocr, (0, 0, W, H), (0, 0, W, H), [], [], unit_mode="lexicon")
+            res = read_colorbar_v2(img, ocr, (0, 0, W, H), (0, 0, W, H), [], [], unit_mode="lexicon",
+                                   end_labels=args.end_labels)
         else:
             res = read_colorbar(img, ocr)
         rec = {**meta, "ok": bool(res["ok"]), "reason": res.get("reason"),

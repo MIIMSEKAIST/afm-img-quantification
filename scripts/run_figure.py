@@ -90,12 +90,14 @@ def main():
     ap.add_argument("--reader", default="v2", choices=["v1", "v2"], help="colour-bar reader (v1 = submitted version)")
     ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
     ap.add_argument("--pairing-mode", default="evidence", choices=["nearest", "evidence"])
+    ap.add_argument("--end-labels", default="verbatim", choices=["fit", "verbatim"], help="'fit' before the last change")
+    ap.add_argument("--crop", default="panel", choices=["box", "panel"], help="'box' in the submitted version and before the last change")
     ap.add_argument("--no-npz", action="store_true")
     args = ap.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
 
     pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space, reader=args.reader,
-                          unit_mode=args.unit_mode, pairing_mode=args.pairing_mode)
+                          unit_mode=args.unit_mode, pairing_mode=args.pairing_mode, end_labels=args.end_labels, crop=args.crop)
     summary = []
     for img_path in iter_images(args.images):
         image = np.array(Image.open(img_path).convert("RGB"))
