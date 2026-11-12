@@ -16,9 +16,9 @@ lookup. Every stage is validated against ground truth:
 
 | validation | what is measured | result (release v1.1.0) |
 |---|---|---|
-| **Engine benchmark** (26 ESM scans × 4 colormaps, JPEG q85) | lookup only, exact scale given | nMAE **2.09 ± 0.76 %** of range, SSIM 0.81, scan median within 0.46 % |
+| **Engine benchmark** (26 ESM scans × 4 colormaps, JPEG q85) | lookup only, exact scale given | nMAE **1.50 ± 0.51 %** of range, SSIM 0.90, scan median within 0.39 % (CIELAB matching of the submitted version: 2.09 %; sRGB baseline: 1.78 % over all pixels) |
 | **Colour-bar reading** (300 synthetic colour bars) | OCR + scale fit | scale read in 99.3 %, both end values within 2 % in **98.3 %** (median end error 0.21 %) |
-| **Realistic figures** (468 complete figures, 15 rendering variants) | detector → OCR → pairing → lookup | default variant: 100 % of panels quantified, scale error 0.40 %, scan median within 0.36 %, nMAE **2.8 %** |
+| **Realistic figures** (468 complete figures, 15 rendering variants) | detector → OCR → pairing → lookup | default variant: 100 % of panels quantified, scale error 0.40 %, scan median within 0.28 %, nMAE **2.4 %** |
 | **Detector** (hand-labelled test split; verified corpus figures) | map / colour-bar boxes | test split mAP@50 0.96 (submitted detector 0.98); on 711 verified corpus figures not used for training, the released detector finds 197 colour bars against 146 for the submitted one and returns the exact number of map panels in 51 figures against 26; false boxes on 4.3 % of the map-free figures (manuscript Section 2.1) |
 
 Known limitations: horizontal colour bars are rarely quantified by the released pipeline (4 of 26 in the realistic-figure benchmark); only linear colour scales with at least two legible
@@ -39,11 +39,12 @@ The accuracy of the pipeline on real literature figures (human verification of t
 
 ```
 afmquant/            importable package
-  engine.py            colour-bar-guided nearest-colour lookup (CIELAB or sRGB matching, ΔE validity mask)
+  engine.py            colour-bar-guided nearest-colour lookup (luma-weighted YCbCr distance; CIELAB or sRGB as
+                       options; validity = CIELAB ΔE to the nearest strip colour)
   colorbar.py          colour-bar crop -> gradient region -> 256-sample calibration strip
   ocr.py               tick-label OCR (RapidOCR / PP-OCRv4), label parsing, unit lexicon, scale fitting (submitted reader)
   reader2.py           label-column colour-bar reader (released): geometry-based label selection, verified strip ends,
-                       ink-based sign decision, unit placement rules, laid-out-bar candidates, end labels taken as written
+                       ink-based sign decision, unit placement rules, laid-out-bar candidates
   crop.py              map crop trimmed to the panel border (page margins removed), colour-bar pixels excluded
   pairing.py           map <-> colour-bar pairing by gamut compatibility and layout evidence (ambiguous panels are held)
   pipeline.py          FigurePipeline: whole figure -> detected panels -> value maps + QC record

@@ -5,7 +5,7 @@ overlay PNG (boxes, pairing, status) and one .npz per quantified panel.
 Usage
 -----
     python scripts/run_figure.py --images path/to/figs --weights detection/weights/afm_detect_best.pt \
-        --out out/pipeline [--color-space cielab|rgb]
+        --out out/pipeline [--color-space ycc|cielab|rgb]
 """
 from __future__ import annotations
 
@@ -86,11 +86,12 @@ def main():
     ap.add_argument("--weights", type=Path, default=Path("detection/weights/afm_detect_best.pt"))
     ap.add_argument("--out", type=Path, default=Path("out/pipeline"))
     ap.add_argument("--conf", type=float, default=0.25, help="detector confidence (0.5 in the submitted version)")
-    ap.add_argument("--color-space", default="cielab", choices=["cielab", "rgb"])
+    ap.add_argument("--color-space", default="ycc", choices=["ycc", "cielab", "rgb"],
+                    help="lookup distance: luma-weighted YCbCr (released), CIELAB (submitted) or sRGB (baseline)")
     ap.add_argument("--reader", default="v2", choices=["v1", "v2"], help="colour-bar reader (v1 = submitted version)")
     ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
     ap.add_argument("--pairing-mode", default="evidence", choices=["nearest", "evidence"])
-    ap.add_argument("--end-labels", default="verbatim", choices=["fit", "verbatim"], help="'fit' before the last change")
+    ap.add_argument("--end-labels", default="fit", choices=["fit", "verbatim"], help="'verbatim' = end labels as written (option, not adopted)")
     ap.add_argument("--crop", default="panel", choices=["box", "panel"], help="'box' in the submitted version and before the last change")
     ap.add_argument("--no-npz", action="store_true")
     args = ap.parse_args()

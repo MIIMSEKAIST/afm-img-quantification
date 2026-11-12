@@ -2,18 +2,25 @@
 
 Given a color-rendered map image, the color bar sampled along its principal
 axis, and the scale endpoints (vmin, vmax), the engine assigns a physical value
-to every map pixel by nearest-color matching in a chosen color space (CIELAB by
-default; sRGB is available as a baseline).
+to every map pixel by nearest-color matching.
+
+Two questions are answered with two distances (released configuration, revision
+R1). Which strip colour a pixel came from is decided in the colour space of the
+JPEG codec (YCbCr) with the chroma axes down-weighted (``color_space="ycc"``,
+``CHROMA_WEIGHT`` = 1/4), because JPEG compression degrades chroma more than
+luma. Whether the pixel belongs to the colour scale at all is decided
+perceptually: the CIELAB distance to the nearest strip colour must be below
+``distance_threshold`` (Delta-E 20; ``mask_space="nearest"``), whatever the
+matching space, so the valid mask is the same for every ``color_space``.
+
+``color_space="cielab"`` reproduces the engine of the submitted manuscript
+(nMAE 2.09 +/- 0.76 % over 104 benchmark cases); ``color_space="rgb"`` is the
+Euclidean-sRGB baseline requested in review.
 
 This module is intentionally dependency-light and free of any I/O so that it can
-be imported and unit-tested in isolation. The default configuration
-(``color_space="cielab"``, ``interpolate=False``, ``distance_threshold=20``) is
-the function validated in the manuscript against 104 ground-truth benchmark
-cases (nMAE 2.09 +/- 0.76 %).
-
-Source: extracted (logic-preserving) from scripts/gold_validation.py; the
-``color_space`` and ``interpolate`` options were added for the baseline
-comparison requested in review (they do not change the default behaviour).
+be imported and unit-tested in isolation. Source: extracted (logic-preserving)
+from scripts/gold_validation.py; the ``color_space``, ``interpolate`` and
+``mask_space`` options were added in revision R1.
 """
 from __future__ import annotations
 
@@ -21,7 +28,13 @@ import numpy as np
 from colorspacious import cspace_convert
 from sklearn.neighbors import KDTree
 
-COLOR_SPACES = ("cielab", "rgb")
+COLOR_SPACES = ("cielab", "rgb", "ycc")
+
+# "ycc": Euclidean distance in the colour space of the JPEG codec (YCbCr, ITU-R BT.601 full range) with the two
+# chroma axes down-weighted. JPEG degrades chroma more than luma (coarser quantisation; with 4:2:0 subsampling one
+# chroma sample is shared by four pixels), so a lookup that trusts luma more than chroma is matched to the noise.
+_RGB2YCC = np.array([[0.299, 0.587, 0.114], [-0.168736, -0.331264, 0.5], [0.5, -0.418688, -0.081312]])
+CHROMA_WEIGHT = 0.25          # weight of the squared chroma distances relative to luma
 
 
 def _to_space(rgb_flat, color_space):
@@ -31,6 +44,8 @@ def _to_space(rgb_flat, color_space):
         return cspace_convert(x, "sRGB255", "CIELab")
     if color_space == "rgb":
         return x
+    if color_space == "ycc":
+        return (x @ _RGB2YCC.T) * np.array([1.0, np.sqrt(CHROMA_WEIGHT), np.sqrt(CHROMA_WEIGHT)])
     raise ValueError(f"color_space must be one of {COLOR_SPACES}, got {color_space!r}")
 
 
@@ -65,7 +80,7 @@ def _project_onto_polyline(pix, strip, values, idx):
 
 
 def quantify_map(map_rgb, colorbar_strip_rgb, vmin, vmax, distance_threshold=20.0,
-                 color_space="cielab", interpolate=False, mask_space="cielab"):
+                 color_space="ycc", interpolate=False, mask_space="nearest"):
     """Reconstruct numerical values from a color-rendered map.
 
     Parameters
@@ -78,23 +93,29 @@ def quantify_map(map_rgb, colorbar_strip_rgb, vmin, vmax, distance_threshold=20.
     vmin, vmax : float
         Scale endpoints read from the color-bar labels (e.g. OCR output).
     distance_threshold : float or None, default 20.0
-        Maximum nearest-neighbour distance (CIELAB Delta-E for the default
-        color space) for a pixel to be considered valid. Pixels above this
+        Maximum distance for a pixel to be considered valid (CIELAB Delta-E to
+        the nearest strip colour with the default ``mask_space``). Pixels above this
         (annotations, scale bars, text overlays) are flagged invalid. ``None``
         disables rejection (every pixel is valid); used for baseline comparisons
         in color spaces where the Delta-E threshold has no meaning.
-    color_space : {"cielab", "rgb"}, default "cielab"
-        Space in which nearest-color matching is performed. "rgb" is the
+    color_space : {"ycc", "cielab", "rgb"}, default "ycc"
+        Space in which nearest-color matching is performed: "ycc" = YCbCr with
+        the chroma axes down-weighted (``CHROMA_WEIGHT``), matched to JPEG
+        noise (released); "cielab" = the submitted engine; "rgb" = the
         Euclidean-sRGB baseline requested in review.
     interpolate : bool, default False
         If True, project each pixel onto the strip polyline between neighbouring
         samples and interpolate the value (continuous output instead of the
         256-level nearest-sample lookup).
-    mask_space : {"cielab", "match"}, default "cielab"
+    mask_space : {"nearest", "cielab", "match"}, default "nearest"
         Space in which the validity distance is measured. "cielab" always uses
         the CIELAB Delta-E between the pixel and its matched calibration colour
         (so the threshold keeps its perceptual meaning even when matching is
-        done in sRGB); "match" uses the matching distance itself.
+        done in sRGB); "nearest" uses the CIELAB Delta-E to the nearest
+        calibration colour whatever the matching space, so that the valid mask
+        (and the valid-pixel ratio) is the same for every ``color_space`` and
+        equal to that of CIELAB matching; "match" uses the matching distance
+        itself.
 
     Returns
     -------
@@ -123,7 +144,12 @@ def quantify_map(map_rgb, colorbar_strip_rgb, vmin, vmax, distance_threshold=20.
 
     value_map = vals.reshape(H, W)
 
-    if mask_space == "cielab" and color_space != "cielab":
+    if mask_space == "nearest" and (color_space != "cielab" or interpolate):
+        # perceptual distance to the nearest calibration colour, independent of the matching space
+        pix_lab = _to_space(map_rgb.reshape(-1, 3), "cielab")
+        strip_lab = _to_space(colorbar_strip_rgb, "cielab")
+        dist = KDTree(strip_lab).query(pix_lab, k=1)[0].flatten()
+    elif mask_space == "cielab" and color_space != "cielab":
         # perceptual mismatch between each pixel and the colour it was matched to
         pix_lab = _to_space(map_rgb.reshape(-1, 3), "cielab")
         strip_lab = _to_space(colorbar_strip_rgb, "cielab")

@@ -8,17 +8,24 @@ detection is deterministic.
 
 The defaults are the released configuration of the revised manuscript: the
 fine-tuned detector (v15) at confidence 0.25, the label-column colour-bar
-reader (``reader="v2"``) with end labels taken verbatim (``end_labels="verbatim"``),
-lexicon-constrained units (``unit_mode="lexicon"``), evidence-based
-map/colour-bar pairing (``pairing_mode="evidence"``) and the map crop trimmed to
-the panel border with colour-bar pixels excluded (``crop="panel"``, see
-:mod:`afmquant.crop`). The configuration of the submitted manuscript is
-reproduced with the v13 weights and ``conf=0.5, reader="v1", unit_mode="raw",
-pairing_mode="nearest", crop="box"``; the state before the last change (the
-outputs rated in the corpus samples, "final7") with ``end_labels="fit",
-crop="box"``. The last change acts after pairing and reading: it does not
-change which colour bar a map is paired with, and it moves an end value only
-to the end label the reader had already placed at that end.
+reader (``reader="v2"``), lexicon-constrained units (``unit_mode="lexicon"``),
+evidence-based map/colour-bar pairing (``pairing_mode="evidence"``), the map
+crop trimmed to the panel border with colour-bar pixels excluded
+(``crop="panel"``, see :mod:`afmquant.crop`) and the luma-weighted lookup
+distance with the CIELAB validity criterion (``color_space="ycc",
+mask_space="nearest"``, see :mod:`afmquant.engine`). The configuration of the
+submitted manuscript is reproduced with the v13 weights and ``conf=0.5,
+reader="v1", unit_mode="raw", pairing_mode="nearest", crop="box",
+color_space="cielab"``; the state before the last changes (the outputs rated in
+the corpus samples, "final7") with ``crop="box", color_space="cielab"``. The last
+changes act after pairing and reading: they change neither which colour bar a
+map is paired with, nor the read scale, nor which panels are quantified (the
+valid mask is the same for every lookup distance).
+
+``end_labels="verbatim"`` (end labels taken as written instead of the fitted
+line at the strip ends) is an option that was tested after the fourth corpus
+rating and not adopted: against the raw scans of the published-figure test it
+moved the scan medians as often away from the truth as towards it.
 
 The detector's colour-bar class is a proposal stage: at confidence 0.25 it also
 returns boxes that are not colour bars (typically a column of axis tick labels
@@ -65,10 +72,10 @@ def merge_boxes(boxes, iou_threshold=0.3):
 
 
 class FigurePipeline:
-    def __init__(self, weights, conf=0.25, iou_merge=0.3, color_space="cielab",
-                 mask_space="cielab", distance_threshold=20.0, margin_trim=0.005,
+    def __init__(self, weights, conf=0.25, iou_merge=0.3, color_space="ycc",
+                 mask_space="nearest", distance_threshold=20.0, margin_trim=0.005,
                  bar_pad=0.5, min_compat=0.5, ocr: ColorbarOCR | None = None, device=None,
-                 pairing_mode="evidence", unit_mode="lexicon", reader="v2", end_labels="verbatim", crop="panel"):
+                 pairing_mode="evidence", unit_mode="lexicon", reader="v2", end_labels="fit", crop="panel"):
         self.weights = str(weights)
         self.conf = conf
         self.iou_merge = iou_merge
@@ -80,7 +87,7 @@ class FigurePipeline:
         self.pairing_mode = pairing_mode          # "nearest" (submitted) | "evidence" (layout or exclusivity required)
         self.unit_mode = unit_mode                # "raw" (submitted) | "lexicon" (canonical SPM unit or unknown)
         self.reader = reader                      # "v1" (submitted) | "v2" (label-column reader, revision R1)
-        self.end_labels = end_labels              # "fit" (line through all labels) | "verbatim" (end labels as written; v2 only)
+        self.end_labels = end_labels              # "fit" (line through all labels) | "verbatim" (option: end labels as written; v2 only)
         self.crop = crop                          # "box" (detector box) | "panel" (trimmed to the panel, bars masked)
         assert end_labels in ("fit", "verbatim") and crop in ("box", "panel")
         self.ocr = ocr or ColorbarOCR()
@@ -143,13 +150,15 @@ class FigurePipeline:
         tx, ty = (x1 - x0) * self.margin_trim, (y1 - y0) * self.margin_trim
         return (int(max(0, x0 + tx)), int(max(0, y0 + ty)), int(min(W, x1 - tx)), int(min(H, y1 - ty)))
 
-    def quantify_crop(self, image_rgb, crop_box, bar, bar_boxes=(), color_space=None):
+    def quantify_crop(self, image_rgb, crop_box, bar, bar_boxes=(), color_space=None, mask_space=None):
         """Colour lookup of one map crop with the bar's strip and scale; with ``crop="panel"`` the pixels inside the
         given colour-bar boxes (the bars the reader read) are excluded from the valid pixels."""
         mx0, my0, mx1, my1 = crop_box
         kw = dict(self.engine_kw)
         if color_space is not None:
             kw["color_space"] = color_space
+        if mask_space is not None:
+            kw["mask_space"] = mask_space
         vm, valid, qc = quantify_map(image_rgb[my0:my1, mx0:mx1], bar["strip"], bar["vmin"], bar["vmax"], **kw)
         if self.crop == "panel" and bar_boxes:
             from .crop import bar_mask

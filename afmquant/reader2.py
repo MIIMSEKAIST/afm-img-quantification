@@ -29,7 +29,7 @@ tick position. This reader addresses each failure by a specific rule:
    unit ("Onm") are corrected.
 
 The scale is fitted as before (:func:`afmquant.ocr.fit_scale`); two end labels alone are accepted when a third
-label disagrees. With ``end_labels="verbatim"`` (the released default of the pipeline) an end that carries its own
+label disagrees. With ``end_labels="verbatim"`` (an option, not the default) an end that carries its own
 label takes that label's value instead of the fitted one (:func:`verbatim_ends`). The unit is taken from the labels of the chosen column or the unit text at the bar
 (lexicon-constrained when ``unit_mode="lexicon"``).
 """
@@ -1336,7 +1336,9 @@ def _unit_near_labels(crop, ocr, items, best, bbox, vertical, det_box, other_bar
 
 
 def verbatim_ends(fit, anchors, tol=0.05):
-    """End labels taken as written (``end_labels="verbatim"``, revision R1, last change). An anchor that the reader placed
+    """End labels taken as written (``end_labels="verbatim"``; an option tested in revision R1 and not adopted as the default:
+    against the raw scans of the published-figure test it moved scan medians as often away from the truth as towards it,
+    because an end tick printed slightly inside the strip is as common as one at its end). An anchor that the reader placed
     at an end of the strip (position 0 or 1: a label beyond the end, or within about a text height of it) gives that end
     its own value instead of the value of the line fitted through all labels, when the two agree within ``tol`` of the
     span; a label far off the line is an outlier that the fit rejected and is not used. Why: AFM software writes the

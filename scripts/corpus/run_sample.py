@@ -15,18 +15,18 @@ from afmquant.pipeline import FigurePipeline  # noqa: E402
 from run_figure import draw_overlay  # noqa: E402
 
 RUNS = ROOT / "runs" / "detect" / "runs" / "afm_detect"
-CONFIGS = {"baseline": dict(pairing_mode="nearest", unit_mode="raw", reader="v1", end_labels="fit", crop="box", weights=RUNS / "v13" / "weights" / "best.pt"),
-           "evidence": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v1", end_labels="fit", crop="box", weights=RUNS / "v13" / "weights" / "best.pt"),
-           "final": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", weights=RUNS / "v15" / "weights" / "best.pt"),
-           "final2": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", weights=RUNS / "v15" / "weights" / "best.pt"),
-           "final3": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", weights=RUNS / "v15" / "weights" / "best.pt"),
-           "final4": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", weights=RUNS / "v15" / "weights" / "best.pt"),
-           "final5": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", weights=RUNS / "v15" / "weights" / "best.pt"),
-           "final6": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", weights=RUNS / "v15" / "weights" / "best.pt"),
-           "final7": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", weights=RUNS / "v15" / "weights" / "best.pt"),
-           "final8": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="verbatim", crop="panel",
-                          weights=RUNS / "v15" / "weights" / "best.pt"),   # released: end labels verbatim, crop trimmed to the panel
-           "final_v13": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", end_labels="fit", crop="box", weights=RUNS / "v13" / "weights" / "best.pt")}
+CONFIGS = {"baseline": dict(pairing_mode="nearest", unit_mode="raw", reader="v1", end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
+           "evidence": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v1", end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
+           "final": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final2": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final3": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final4": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final5": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final6": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final7": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
+           "final8": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="panel", color_space="ycc",
+                          weights=RUNS / "v15" / "weights" / "best.pt"),   # released: crop trimmed to the panel, colour-bar pixels excluded
+           "final_v13": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt")}
 
 
 def main():

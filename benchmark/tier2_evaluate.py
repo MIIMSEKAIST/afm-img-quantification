@@ -119,14 +119,18 @@ def main():
     ap.add_argument("--manifest", type=Path, default=Path("runs/tier2/manifest.json"))
     ap.add_argument("--weights", type=Path, default=Path("detection/weights/afm_detect_best.pt"))
     ap.add_argument("--out", type=Path, default=Path("results/tier2_results.csv"))
-    ap.add_argument("--color-spaces", nargs="*", default=["cielab", "rgb"])
+    ap.add_argument("--color-spaces", nargs="*", default=["ycc", "rgb", "cielab"],
+                    help="lookup distances; the first is the pipeline's, the others re-quantify the same crops")
+    ap.add_argument("--alt-mask", default=None, choices=["cielab", "nearest", "match"],
+                    help="validity mask of the colour spaces after the first (default: the pipeline's; 'nearest' gives every "
+                         "colour space the mask of CIELAB matching, hence the same quantified panels and scored pixels)")
     ap.add_argument("--variants", nargs="*", default=None)
     ap.add_argument("--overlay-dir", type=Path, default=None)
     ap.add_argument("--pairing-mode", default="evidence", choices=["nearest", "evidence"])
     ap.add_argument("--reader", default="v2", choices=["v1", "v2"])
     ap.add_argument("--conf", type=float, default=0.25, help="detector confidence threshold (0.5 in the submitted version)")
     ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
-    ap.add_argument("--end-labels", default="verbatim", choices=["fit", "verbatim"], help="'fit' before the last change")
+    ap.add_argument("--end-labels", default="fit", choices=["fit", "verbatim"], help="'verbatim' = end labels as written (option, not adopted)")
     ap.add_argument("--crop", default="panel", choices=["box", "panel"], help="'box' in the submitted version and before the last change")
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -168,7 +172,8 @@ def main():
                     if p["value_map"] is not None:
                         bar = res0["bars"][p["bar_idx"]]
                         vm, valid, qc = pipe0.quantify_crop(image, p["map_crop_box"], bar,
-                                                            [b["box"] for b in res0["bars"] if b.get("ok")], color_space=cs)
+                                                            [b["box"] for b in res0["bars"] if b.get("ok")], color_space=cs,
+                                                            mask_space=args.alt_mask)
                         q["value_map"], q["valid_mask"] = vm, valid
                         q["qc"] = {**p["qc"], **{k: v for k, v in qc.items()}}
                         q["status"] = "ok" if qc["valid_pixel_ratio"] >= 0.5 else "low_valid_ratio"

@@ -38,24 +38,24 @@ STEPS = [  # (key, command)
                      "--out", "results/diffusivity_recon_vs_raw.csv"]),
     ("robustness", ["benchmark/robustness_sweep.py", "--out", "results/robustness_sweep.csv"]),
     ("subsampling", ["benchmark/subsampling_sweep.py", "--out", "results/subsampling_sweep.csv"]),
+    ("subsampling_cielab", ["benchmark/subsampling_sweep.py", "--color-space", "cielab",
+                            "--out", "results/subsampling_sweep_cielab.csv"]),
+    ("subsampling_rgb", ["benchmark/subsampling_sweep.py", "--color-space", "rgb",
+                         "--out", "results/subsampling_sweep_rgb.csv"]),
     ("baseline", ["benchmark/baseline_comparison.py", "--out", "results/baseline_comparison.csv"]),
+    ("jpeg_noise", ["benchmark/jpeg_noise.py", "--out", "results/jpeg_noise.csv"]),
     ("colormaps", ["benchmark/colormap_analysis.py", "--out", "results/colormap_properties.csv"]),
     # --- stages added in revision R1 (colour-bar reading, detection, end-to-end) ---
     ("ocr", ["benchmark/ocr_synthetic_test.py", "--n", "300", "--out", "results/ocr_synthetic_test.csv"]),
     ("detection", ["detection/evaluate.py", "--out", "results/detection_eval.json"]),
     ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
                              "--out", "results/detection_eval_v13.json"]),
-    ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
-                             "--out", "results/detection_eval_v13.json"]),
-    ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
-                             "--out", "results/detection_eval_v13.json"]),
-    ("detection_submitted", ["detection/evaluate.py", "--weights", "detection/weights/afm_detect_v13.pt",
-                             "--out", "results/detection_eval_v13.json"]),
     ("tier2_render", ["benchmark/tier2_render.py", "--out", "runs/tier2"]),
     ("tier2_eval", ["benchmark/tier2_evaluate.py", "--manifest", "runs/tier2/manifest.json",
                     "--out", "results/tier2_results.csv"]),
 ]
-NEEDS_IBW = {"benchmark", "scanlevel", "diffusivity", "robustness", "subsampling", "baseline", "tier2_render"}
+NEEDS_IBW = {"benchmark", "scanlevel", "diffusivity", "robustness", "subsampling", "subsampling_cielab", "subsampling_rgb",
+             "baseline", "jpeg_noise", "tier2_render"}
 NEEDS_WEIGHTS = {"detection", "tier2_eval"}      # detector weights (released with v1.1.0)
 NEEDS_DATA = {"detection", "detection_submitted"}                        # labelled detection dataset (Zenodo deposit)
 NEEDS_PDFF = {"tier2_render"}                     # pdffigures2 jar (optional; PyMuPDF fallback)
@@ -152,11 +152,14 @@ def build_manifest():
             "colormap_order_copper<hot<jet<viridis_by_quality": order_ok,
         }
 
-    if (R / "subsampling_sweep.csv").exists():
-        ss = pd.read_csv(R / "subsampling_sweep.csv")
-        M["subsampling"] = {metric: {v: {c: r(ss[(ss.variant == v) & (ss.colormap == c)][metric].mean())
-                                         for c in COLORMAPS} for v in ss.variant.unique()}
-                            for metric in ("nMAE_pct", "SSIM")}
+    for key, fn in (("subsampling", "subsampling_sweep.csv"), ("subsampling_cielab", "subsampling_sweep_cielab.csv"),
+                    ("subsampling_rgb", "subsampling_sweep_rgb.csv")):
+        if (R / fn).exists():
+            ss = pd.read_csv(R / fn)
+            M[key] = {metric: {v: {c: r(ss[(ss.variant == v) & (ss.colormap == c)][metric].mean())
+                                   for c in COLORMAPS} | {"mean": r(ss[ss.variant == v][metric].mean())}
+                               for v in ss.variant.unique()}
+                      for metric in ("nMAE_pct", "SSIM", "std_error_signed_pct")}
 
     if (R / "baseline_comparison.csv").exists():
         bl = pd.read_csv(R / "baseline_comparison.csv")
@@ -166,6 +169,11 @@ def build_manifest():
         M["baseline_by_colormap_nMAE_allpix"] = {
             m: {c: r(g[g.colormap == c].nMAE_pct.mean()) for c in COLORMAPS}
             for m, g in bl[bl["mask"] == "all"].groupby("method")}
+
+    if (R / "jpeg_noise.csv").exists():
+        jn = pd.read_csv(R / "jpeg_noise.csv")
+        M["jpeg_noise"] = {c: {k: r(g[k].mean(), 2) for k in ("sd_Y", "sd_Cb", "sd_Cr", "chroma_to_luma")}
+                           for c, g in jn.groupby("colormap")}
 
     if (R / "colormap_properties.csv").exists():
         cp = pd.read_csv(R / "colormap_properties.csv")
@@ -196,12 +204,6 @@ def build_manifest():
 
     if (R / "detection_eval.json").exists():
         M["detection"] = json.loads((R / "detection_eval.json").read_text(encoding="utf-8")).get("splits")
-    if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
-        M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
-    if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
-        M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
-    if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
-        M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
     if (R / "detection_eval_v13.json").exists():   # the submitted detector, for the comparison in Section 2.1
         M["detection_submitted"] = json.loads((R / "detection_eval_v13.json").read_text(encoding="utf-8")).get("splits")
 

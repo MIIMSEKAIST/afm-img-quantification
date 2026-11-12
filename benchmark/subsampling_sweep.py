@@ -40,8 +40,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--ibw-dir", type=Path, default=Path("data/esm_ibw"))
     ap.add_argument("--out", type=Path, default=Path("results/subsampling_sweep.csv"))
-    ap.add_argument("--color-space", default="cielab", choices=["cielab", "rgb"],
-                    help="matching space of the engine (default: manuscript setting)")
+    ap.add_argument("--color-space", default="ycc", choices=["ycc", "cielab", "rgb"],
+                    help="lookup distance of the engine (default: released; 'cielab' = submitted engine). The valid "
+                         "pixels are the same for every distance (CIELAB Delta-E < 20 to the nearest strip colour)")
     args = ap.parse_args()
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -53,8 +54,7 @@ def main():
                 m, s, vmin, vmax = render_to_published_style(
                     gt, cmap_name, JPEG_QUALITY, fmt=fmt, subsampling=sub)
                 recon, valid, qc = quantify_map(
-                    m, s, vmin, vmax, color_space=args.color_space,
-                    distance_threshold=20.0 if args.color_space == "cielab" else None)
+                    m, s, vmin, vmax, color_space=args.color_space, mask_space="nearest", distance_threshold=20.0)
                 met = evaluate(gt, recon, valid)
                 rows.append({"variant": name, "color_space": args.color_space, "scan": ibw_path.stem,
                              "material": material_of(ibw_path.stem),

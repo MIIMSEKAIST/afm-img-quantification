@@ -836,11 +836,13 @@ def main():
     ap.add_argument("--java", default="java")
     ap.add_argument("--dpi", type=int, default=150, help="figure rasterisation dpi (corpus: 150)")
     ap.add_argument("--conf", type=float, default=0.25, help="detector confidence (pipeline default)")
-    ap.add_argument("--color-space", default="cielab", choices=["cielab", "rgb"])
+    ap.add_argument("--color-space", default="ycc", choices=["ycc", "cielab", "rgb"])
+    ap.add_argument("--mask-space", default="nearest", choices=["nearest", "cielab", "match"],
+                    help="validity mask ('nearest': the mask of CIELAB matching for every colour space)")
     ap.add_argument("--reader", default="v2", choices=["v1", "v2"])
     ap.add_argument("--unit-mode", default="lexicon", choices=["raw", "lexicon"])
     ap.add_argument("--pairing-mode", default="evidence", choices=["nearest", "evidence"])
-    ap.add_argument("--end-labels", default="verbatim", choices=["fit", "verbatim"], help="'fit' before the last change")
+    ap.add_argument("--end-labels", default="fit", choices=["fit", "verbatim"], help="'verbatim' = end labels as written (option, not adopted)")
     ap.add_argument("--crop", default="panel", choices=["box", "panel"], help="'box' in the submitted version and before the last change")
     ap.add_argument("--no-crop-search", action="store_true", help="match full scans only")
     ap.add_argument("--ambiguous-margin", type=float, default=0.05,
@@ -871,7 +873,7 @@ def main():
     params = tm.MatchParams(ambiguous_margin=args.ambiguous_margin, channel_margin=args.channel_margin)
     if args.no_crop_search:
         params.crop_trigger, params.crop_skip_contrast = -1.0, -1.0
-    pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space, ocr=ColorbarOCR(),
+    pipe = FigurePipeline(args.weights, conf=args.conf, color_space=args.color_space, mask_space=args.mask_space, ocr=ColorbarOCR(),
                           reader=args.reader, unit_mode=args.unit_mode, pairing_mode=args.pairing_mode, end_labels=args.end_labels, crop=args.crop)
     all_rows, all_details, infos = [], [], {}
     for paper, src in papers.items():

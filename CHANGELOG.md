@@ -32,16 +32,19 @@ Added
   band beside the labels stops half-way to the next panel, exponent offsets written with a capital X and
   labels with a thousands suffix are read, and superscript powers of ten are withheld as a logarithmic
   scale. `tests/test_reader2_cycle3.py`.
-- Last change (after the fourth human verification; it leaves every rated pairing and quantified status
-  of the corpus samples unchanged, because both steps act after pairing and reading): printed end labels
-  are taken as written (`end_labels="verbatim"`, the default) — an end label that the fitted line passes
-  within 5 % of the span replaces the fitted end value; and the map crop is trimmed to the panel border
-  (`crop="panel"`, the default; `afmquant/crop.py`) — page-coloured margin rows and columns of the
-  detector box are removed (at most 15 % of the box per side) and the pixels of read colour bars inside
-  the crop are excluded, so that the page background no longer counts as data in colormaps that end in
-  white and an inset colour bar no longer counts as map. `--end-labels`, `--crop` on
-  `scripts/run_figure.py`, `benchmark/tier2_evaluate.py` and `benchmark/tier3_evaluate.py`,
-  `--end-labels` on `benchmark/ocr_synthetic_test.py`; `tests/test_crop_and_ends.py`.
+- Last change (after the fourth human verification; it acts after pairing and reading and leaves every
+  rated pairing, read scale and quantified status of the corpus samples unchanged): the map crop is
+  trimmed to the panel border (`crop="panel"`, the default; `afmquant/crop.py`) — page-coloured margin
+  rows and columns of the detector box are removed (at most 15 % of the box per side) and the pixels of
+  read colour bars inside the crop are excluded, so that the page background no longer counts as data in
+  colormaps that end in white and an inset colour bar no longer counts as map. `--crop` on
+  `scripts/run_figure.py`, `benchmark/tier2_evaluate.py` and `benchmark/tier3_evaluate.py`;
+  `tests/test_crop_and_ends.py`.
+- Option `end_labels="verbatim"` (not the default): an end label that the fitted line passes within 5 %
+  of the span replaces the fitted end value. Tested together with the crop change and not adopted: it
+  made no difference to the accuracy against ground truth (published-figure test: scan medians moved
+  as often away from the raw data as towards it, all within 0.25 % of the range). `--end-labels` on the
+  scripts above and on `benchmark/ocr_synthetic_test.py`.
 - `afmquant/colorbar.py`, `afmquant/ocr.py`, `afmquant/pairing.py`, `afmquant/pipeline.py`:
   colour-bar strip extraction, tick-label OCR (RapidOCR / PP-OCRv4) and scale fitting,
   map–colour-bar pairing and the end-to-end `FigurePipeline` (these stages were described
@@ -65,11 +68,19 @@ Added
 
 Changed
 - Defaults of `FigurePipeline` and of every script are the released configuration (detector v15 at
-  confidence 0.25, reader v2, lexicon units, evidence pairing, end labels as written, crop trimmed to
-  the panel); the submitted configuration is `conf=0.5, reader="v1", unit_mode="raw",
-  pairing_mode="nearest", crop="box"` with `afm_detect_v13.pt`.
-- `afmquant/engine.py`: `color_space` ("cielab" | "rgb"), `interpolate` and `mask_space`
-  options; the validity mask is always a CIELAB ΔE.
+  confidence 0.25, reader v2, lexicon units, evidence pairing, crop trimmed to the panel, luma-weighted
+  lookup distance); the submitted configuration is `conf=0.5, reader="v1", unit_mode="raw",
+  pairing_mode="nearest", crop="box", color_space="cielab"` with `afm_detect_v13.pt`.
+- Lookup distance (after the baseline comparison requested in review, which showed Euclidean sRGB to be
+  more accurate than CIELAB on JPEG-compressed maps): `afmquant/engine.py` assigns values with the
+  Euclidean distance in YCbCr with the chroma axes weighted by 1/4 (`color_space="ycc"`, the default;
+  `CHROMA_WEIGHT`), because JPEG compression degrades chroma more than luma, and decides validity by the
+  CIELAB distance to the nearest strip colour (`mask_space="nearest"`, the default), so the valid mask —
+  and with it which panels are quantified — is the same for every distance. `color_space="cielab"`
+  reproduces the submitted engine, `"rgb"` is the baseline; `interpolate` option. `--color-space` on
+  `scripts/run_figure.py`, `benchmark/tier3_evaluate.py`, `benchmark/robustness_sweep.py` and
+  `benchmark/subsampling_sweep.py`; `benchmark/tier2_evaluate.py` evaluates ycc, rgb and cielab on the same
+  crops; `benchmark/baseline_comparison.py` adds the released distance and a chroma-weight sweep.
 - `afmquant/metrics.py`: additional metrics (nMAE/IQR, nMAE/SD, signed mean / SD error,
   all-pixel nMAE, levels in IQR).
 - `afmquant/render.py`: explicit JPEG chroma-subsampling control; matplotlib ≥ 3.9 colormap API.
