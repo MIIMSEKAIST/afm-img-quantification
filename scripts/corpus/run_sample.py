@@ -15,8 +15,10 @@ from afmquant.pipeline import FigurePipeline  # noqa: E402
 from run_figure import draw_overlay  # noqa: E402
 
 RUNS = ROOT / "runs" / "detect" / "runs" / "afm_detect"
-CONFIGS = {"baseline": dict(pairing_mode="nearest", unit_mode="raw", reader="v1", end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
-           "evidence": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v1", end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
+# conf: the submitted detector ran at 0.5 (the pipeline default until the release commit, 0.25 since); it is pinned
+# here so that the submitted configurations stay reproducible with the released defaults.
+CONFIGS = {"baseline": dict(pairing_mode="nearest", unit_mode="raw", reader="v1", conf=0.5, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
+           "evidence": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v1", conf=0.5, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
            "final": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
            "final2": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
            "final3": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
@@ -26,7 +28,7 @@ CONFIGS = {"baseline": dict(pairing_mode="nearest", unit_mode="raw", reader="v1"
            "final7": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),
            "final8": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="panel", color_space="ycc",
                           weights=RUNS / "v15" / "weights" / "best.pt"),   # released: crop trimmed to the panel, colour-bar pixels excluded
-           "final_v13": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt")}
+           "final_v13": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.5, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt")}
 
 
 def main():

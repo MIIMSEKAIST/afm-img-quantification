@@ -62,11 +62,16 @@ Added
   figures with archived raw scans (figure extraction from the publisher PDF as for the corpus,
   full pipeline, automatic matching of each panel to the raw scan, channel and orientation it
   shows, Tier 2 metrics); `benchmark/tier3_selftest.py`: synthetic self-test of that tool.
-- `reproduce_all.py`: one command regenerates every number of the manuscript
+- `reproduce_all.py`: one command regenerates the benchmark results of the manuscript
   (`results/numbers_manifest.json`).
-- `tests/`: 90 unit tests; `requirements.lock`: exact versions.
+- The quality-control record of a quantified panel carries `levels_in_iqr`, the number of colour levels of the scale
+  that the interquartile range of the reconstructed values spans (the figure-level indicator of Section 2.4).
+- `tests/`: 91 unit tests; `requirements.lock`: exact versions.
 
 Changed
+- `scripts/corpus/run_sample.py`: the configurations of the initial pipeline (`baseline`, `evidence`, `final_v13`) pin the
+  detector confidence of 0.5 with which they were run; they had relied on the pipeline default, which is 0.25 since the
+  released configuration became the default.
 - Defaults of `FigurePipeline` and of every script are the released configuration (detector v15 at
   confidence 0.25, reader v2, lexicon units, evidence pairing, crop trimmed to the panel, luma-weighted
   lookup distance); the submitted configuration is `conf=0.5, reader="v1", unit_mode="raw",

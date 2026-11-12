@@ -206,6 +206,11 @@ class FigurePipeline:
                        "fit_residual_rel": bar["fit"].get("residual_rel"),
                        "strip_tortuosity": bar["strip_quality"]["tortuosity"],
                        "bar_orientation": bar["orientation"]})
+            # how many of the 256 colour levels of the scale the central half of the data occupies: a figure-level
+            # indicator of how much pixel-level detail the figure can carry (computed from the reconstruction alone)
+            if valid.any() and bar["vmax"] != bar["vmin"]:
+                q25, q75 = np.percentile(vm[valid], [25, 75])
+                qc["levels_in_iqr"] = float((q75 - q25) / (abs(bar["vmax"] - bar["vmin"]) / 255.0))
             panel.update({"status": "ok" if qc["valid_pixel_ratio"] >= 0.5 else "low_valid_ratio",
                           "value_map": vm, "valid_mask": valid, "qc": qc,
                           "map_crop_box": (mx0, my0, mx1, my1)})
