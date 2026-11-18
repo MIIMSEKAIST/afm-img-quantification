@@ -18,10 +18,17 @@ license: MIT
 repository-code: "https://github.com/MIIMSEKAIST/afm-img-quantification"
 version: "1.1.0"
 date-released: "2026-11-18"
+doi: "10.5281/zenodo.24329912"
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.21055266"
-    description: "Ground-truth ESM dataset archived on Zenodo, required to reproduce the 104-case benchmark."
+    value: "10.5281/zenodo.24329912"
+    description: "This release (v1.1.0) archived on Zenodo."
+  - type: doi
+    value: "10.5281/zenodo.24329899"
+    description: "Dataset version 2.0 on Zenodo (ground-truth ESM scans, benchmarks, corpus samples and their rating), required to reproduce the results of the article."
+  - type: doi
+    value: "10.5281/zenodo.21055265"
+    description: "All versions of the dataset (resolves to the latest)."
 preferred-citation:
   type: article
   title: "Recovering quantitative atomic force microscopy data from published figures: a ground-truth-validated pipeline"

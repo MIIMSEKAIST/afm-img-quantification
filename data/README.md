@@ -25,7 +25,9 @@ data/esm_ibw/
     NCM811_pristine_07_4um.ibw
 ```
 
-- **Zenodo DOI:** https://doi.org/10.5281/zenodo.21055266 (CC-BY)
+- **Zenodo DOI:** https://doi.org/10.5281/zenodo.24329899 (version 2.0, CC BY 4.0; the scans are in
+  `esm_ibw.zip`). All versions: https://doi.org/10.5281/zenodo.21055265; version 1:
+  https://doi.org/10.5281/zenodo.21055266.
 
 ## Which files define the benchmark
 
@@ -39,7 +41,7 @@ The Zenodo deposit (v1) additionally contains **3 auxiliary single-scan files**
 (`LICGC.ibw`, `LMNO_pristine.ibw`, `NCM811_pristine.ibw`). They are byte-identical
 copies of `LICGC_01_4um.ibw`, `LMNO_pristine_03_4um.ibw` and
 `NCM811_pristine_03_4um.ibw`, are *not* part of the benchmark and are ignored by
-the scripts (they will be removed in the next dataset version).
+the scripts. Version 2.0 no longer contains them.
 
 Scan sizes are encoded in the file names; note that `NCM811_pristine_07_4um.ibw`
 was acquired with a 2 µm scan size according to its Igor metadata (the name is
