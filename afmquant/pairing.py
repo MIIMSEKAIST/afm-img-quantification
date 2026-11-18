@@ -7,7 +7,7 @@ compatible, with the nearest one. A single bar may therefore be shared by
 several maps. Maps without a compatible bar (compatibility < ``min_compat``)
 are returned unpaired and are not quantified.
 
-``mode="evidence"`` (revision R1, human verification of the corpus sample):
+``mode="evidence"`` (revision R1, after the first corpus sample):
 gamut compatibility alone does not discriminate between the bars of a figure
 (same colormap everywhere), so a bar is accepted only with positive evidence
 that it belongs to the map. A map whose figure lays out a bar as its own (the

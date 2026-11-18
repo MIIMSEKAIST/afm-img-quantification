@@ -1,6 +1,10 @@
 # Changelog
 
-## v1.1.0 — revision R1 (2026-10)
+## v1.1.0 — revision R1 (2026-11)
+
+The development rounds named below followed a first-pass rating of the corpus samples whose verdicts were
+produced by an AI coding assistant. The accuracies reported in the article come from the authors' own rating
+of the same figures (manuscript Methods; Supplementary Notes 9 and 10).
 
 Added
 - `afmquant/reader2.py`: label-column colour-bar reader (`reader="v2"`, the default): tick labels are
@@ -11,28 +15,28 @@ Added
   only with a colour bar that the figure layout assigns to it (exclusive, row or column evidence); otherwise
   the panel is held (`no_exclusive_bar`, `own_bar_unreadable`) instead of being quantified with a
   neighbour's bar. `afmquant/ocr.py`: lexicon-constrained units (`unit_mode="lexicon"`, the default).
-- Released detector v15: the submitted detector fine-tuned on the human-verified corpus figures (dataset v2 =
-  original labels + 91 verified positives + 198 map-free negatives), applied at confidence 0.25.
-- `scripts/corpus/`: corpus-sample evaluations (held-out sample runs, verification workbooks, reader and
-  pairing evaluations on verified figures, dataset v2, fine-tuning, held-out detector comparison);
-  `data/corpus_sample/bar_truth.csv`.
+- Released detector v15: the submitted detector fine-tuned on figures of the first corpus sample chosen with that
+  first-pass rating (dataset v2 = original labels + 91 figures whose detections serve as labels + 198 map-free
+  negatives), applied at confidence 0.25.
+- `scripts/corpus/`: corpus samples (sampling, pipeline runs, first-pass rating workbooks, reader and pairing
+  evaluations, dataset v2, fine-tuning, detector comparison); `data/corpus_sample/bar_truth.csv`.
 - `--conf`, `--reader`, `--unit-mode`, `--pairing-mode` on `scripts/run_figure.py`, `benchmark/tier2_evaluate.py`
   and `benchmark/tier3_evaluate.py`; `--reader` on `benchmark/ocr_synthetic_test.py`.
 - `results/detection_eval_v13.json` (submitted detector) next to `results/detection_eval.json` (released).
-- Reader cycle 2 (after the second human verification): the sign of a tick label is decided from the ink
+- Reader cycle 2 (prompted by the second corpus sample): the sign of a tick label is decided from the ink
   next to its digits (tick marks are no longer read as minus signs, lost minus signs are recovered), units
   are accepted only at the bar's end, next to a label or beside the label column (never from a
   neighbouring axis), the gradient region is chosen among several candidates and confined to the lines
   that behave like a gradient, thin strips are grown through tick marks, and a map takes the colour bar laid
   out as its own before any other (bars between two maps resolved by the figure's convention; short bars;
   column-wise stack evidence). `tests/test_reader2_cycle2.py`.
-- Reader, last round (after the third human verification): unit tokens that the OCR produces for more
+- Reader, last round (prompted by the third corpus sample): unit tokens that the OCR produces for more
   than one unit in small print ('uu', 'mm', 'NA') are reported as unknown, composite or logarithmic
   titles yield no unit, a unit next to a label must follow the number on the label's side, the rotated
   band beside the labels stops half-way to the next panel, exponent offsets written with a capital X and
   labels with a thousands suffix are read, and superscript powers of ten are withheld as a logarithmic
   scale. `tests/test_reader2_cycle3.py`.
-- Last change (after the fourth human verification; it acts after pairing and reading and leaves every
+- Last change (after the fourth corpus sample had been rated; it acts after pairing and reading and leaves every
   rated pairing, read scale and quantified status of the corpus samples unchanged): the map crop is
   trimmed to the panel border (`crop="panel"`, the default; `afmquant/crop.py`) — page-coloured margin
   rows and columns of the detector box are removed (at most 15 % of the box per side) and the pixels of

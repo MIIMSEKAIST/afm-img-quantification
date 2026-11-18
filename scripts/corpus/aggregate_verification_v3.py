@@ -1,4 +1,5 @@
-"""Aggregate the human rating of the third corpus sample (verification_v3.xlsx): the released pipeline only, on a
+"""Aggregate the first-pass rating of the third corpus sample (verification_v3.xlsx; verdicts produced with an AI
+coding assistant, see README.md): the released pipeline only, on a
 sample that guided no revision (held-out test of the released pipeline). Writes results/verification_v3_summary.json
 and notes/검증_v3_결과.md.
 

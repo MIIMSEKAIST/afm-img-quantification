@@ -1,5 +1,5 @@
 """Figure-level pairing/scale evaluation of a pipeline configuration on the 88 corpus figures that the submitted
-pipeline quantified (human labels: B_pairing_ok, B_scale_ok), plus the 30 AFM figures with a colour bar that the
+pipeline quantified (first-pass labels: B_pairing_ok, B_scale_ok; README.md), plus the 30 AFM figures with a colour bar that the
 submitted pipeline detected but did not quantify (do they become quantified?).
 
     python eval_pairing_v2.py --reader v2 --pairing evidence --unit lexicon [--out results.csv]

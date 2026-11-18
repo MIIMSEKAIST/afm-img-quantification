@@ -1,4 +1,4 @@
-"""Human verification sheet for the third corpus sample (yield_sample_v3): the released pipeline only, rated on the
+"""Rating sheet of the first pass (see README.md) for the third corpus sample (yield_sample_v3): the released pipeline only, rated on the
 figures in which it quantified at least one panel. Per figure the rater sees the overlay and the caption and judges
 whether every quantified panel is paired with its own colour bar, whether every read range and unit matches the
 tick labels, and how many withheld (orange) panels an adjacent colour bar would have allowed to quantify.

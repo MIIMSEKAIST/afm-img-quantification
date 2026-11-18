@@ -15,8 +15,8 @@ caption / unit filter (`afmquant/afm_filter.py`).
 | script | role |
 |--------|------|
 | `train.py`    | train the detector from the pretrained backbone (defaults = configuration of run v13, the submitted detector) |
-| `../scripts/corpus/build_dataset_v2.py`, `finetune_v15.py` | training set v2 (verified corpus figures) and the fine-tuning that produced the released detector v15 |
-| `../scripts/corpus/compare_detectors_heldout.py` | submitted vs released detector on verified corpus figures not used for training |
+| `../scripts/corpus/build_dataset_v2.py`, `finetune_v15.py` | training set v2 (figures of the first corpus sample) and the fine-tuning that produced the released detector v15 |
+| `../scripts/corpus/compare_detectors_heldout.py` | development check: submitted vs released detector against the first-pass counts on figures of the first corpus sample not used for training |
 | `evaluate.py` | held-out metrics (Ultralytics `val`) -> `results/detection_eval.json` |
 | `detect.py`   | run inference on figures, crop maps and colour bars |
 | `data.yaml`   | YOLO dataset configuration |
@@ -54,14 +54,14 @@ Per class on the test split: `afm_map` AP@50 0.995, `colorbar` AP@50 0.971.
 
 ## Released detector (v15, revision R1)
 
-The human verification of a 1,000-figure corpus sample (manuscript Section 2.8) showed
-that the submitted detector produced boxes on many map-free figures (photographs,
-schematics) and missed colour bars. The released detector is v13 fine-tuned on training
-set v2: the original labels plus 91 verified corpus figures in which the number of
-detected maps and colour bars equalled the verifier's count and no box was judged false
-(their detections serve as labels) and 198 map-free corpus figures with empty labels
-(158 on which v13 had produced boxes, 40 drawn at random). The validation and test
-splits are unchanged; the fresh held-out sample of Section 2.8 was never used.
+A first-pass rating of the first 1,000-figure corpus sample, whose verdicts were produced by an AI
+coding assistant (manuscript Methods), indicated that the submitted detector (v13, the initial
+detector of the article) produced boxes on many map-free figures (photographs, schematics) and
+missed colour bars. The released detector is v13 fine-tuned on training set v2: the original labels
+plus 91 figures of that sample in which, by that rating, the detector had found every map and
+colour bar and returned no false box (their detections serve as labels) and 198 map-free figures
+with empty labels (158 on which v13 had produced boxes, 40 drawn at random). The validation and
+test splits are unchanged, and the later corpus samples were never used.
 Fine-tuning: 60 epochs from the v13 weights, lr0 0.002, warm-up 1 epoch, otherwise the
 configuration above (`scripts/corpus/finetune_v15.py`). The pipeline applies v15 at
 confidence 0.25 (0.5 for v13): the additional low-confidence boxes are rejected
@@ -72,15 +72,18 @@ downstream unless a readable, legitimately paired colour bar is found.
 | validation (38 images) | 0.950 | 0.823 | 0.924 | 0.936 |
 | test (19 images) | 0.956 | 0.842 | 0.901 | 0.936 |
 
-On the 711 verified corpus figures not used for training (512 map-free,
-199 with colour-mapped panels; `compare_detectors_heldout.py`), v15 at 0.25 finds
-197 of the 280 colour bars counted by the verifier (v13 at 0.5: 146), returns
-the exact number of maps in 51 figures (v13: 26) and produces a false box in
-22 map-free figures (4.3 %; v13: 0, 0.0 %). The hand-labelled test
+On literature figures the two detectors were compared on 200 figures drawn at random from the
+held-out fourth corpus sample (manuscript Section 2.8): two of the authors counted the
+colour-mapped panels (212 in 55 figures) and, without knowing which detector had drawn which
+boxes, the boxes that enclose a panel. v15 at 0.25 found 161 panels (recall 0.76) with 60 false
+boxes (precision 0.73); v13 at 0.5 found 155 (recall 0.73) with 123 false boxes (precision 0.56).
+In the 145 figures without maps v15 returned boxes in 24 and v13 in 37. The hand-labelled test
 split is small (19 images): there v15 scores mAP@50 0.956 against 0.983 for v13.
+(`compare_detectors_heldout.py` is an earlier development check against the counts of the
+first-pass rating; the article does not use it.)
 
-Behaviour on realistic figures (468 rendered figures, 15 variants) and on a
-random sample of 1,000 corpus figures and 100 figures with non-AFM colour-mapped
-panels is reported in the manuscript (Sections 2.6 and 2.8 and Supplementary Note 7).
+Behaviour on realistic figures (468 rendered figures, 15 variants), on four samples of the
+literature corpus and on 100 figures of other colour-mapped techniques is reported in the
+manuscript (Sections 2.6 and 2.8 and Supplementary Note 7).
 Known limitation: horizontal colour bars are rarely quantified by the released pipeline (4 of 26 in the realistic-figure benchmark); the column of y-axis tick labels is sometimes
 returned as a colour bar and is rejected by the colour-bar reader.

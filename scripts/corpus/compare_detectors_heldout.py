@@ -1,11 +1,12 @@
-"""Compare detectors on the human-verified corpus figures that were NOT used to train v15 (figure-level, no OCR).
+"""Development check: compare detectors on the first-pass-rated figures of the first corpus sample that were NOT used
+to train v15 (figure-level, no OCR). The article reports the authors' rating of Section 2.8 instead (README.md).
 
     python compare_detectors_heldout.py [--weights v13 v15]
 
 Sets (from verification_reviewed_20261021.xlsx minus datasets/afm_detection_v2/added_from_corpus_sample.csv):
   * map-free figures not used as negatives  -> false-box rate (figures with >= 1 box) and boxes per figure
-  * figures with maps not used as positives -> figures with >= 1 box; boxes vs human map count (over/under)
-Also the number of colour bars detected vs the human bar count on the figures with maps.
+  * figures with maps not used as positives -> figures with >= 1 box; boxes vs the map count of that rating (over/under)
+Also the number of colour bars detected vs the bar count of that rating on the figures with maps.
 Writes revision/detection/v15/heldout_corpus_compare.json."""
 import argparse, json, sys
 from pathlib import Path

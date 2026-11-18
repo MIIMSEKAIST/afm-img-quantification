@@ -1,4 +1,5 @@
-"""Aggregate the human ratings of the fresh held-out sample (verification_v2.xlsx): before/after comparison of the
+"""Aggregate the first-pass ratings of the second corpus sample (verification_v2.xlsx; verdicts produced with an AI
+coding assistant, see README.md): before/after comparison of the
 submitted (baseline) and revised (evidence) pipelines on the same figures.
 
 Reports, per configuration: figures quantified, panels quantified, figures with all pairings correct, figures with

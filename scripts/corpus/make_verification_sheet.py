@@ -1,4 +1,4 @@
-"""Human verification sheet for the fresh held-out sample (yield_sample_v2): only figures in which at least one panel
+"""Rating sheet of the first pass (see README.md) for the second corpus sample (yield_sample_v2): only figures in which at least one panel
 was quantified by the baseline OR the evidence configuration. For every such figure the rater sees both overlays
 side by side (baseline left, evidence right) and judges, per configuration, whether all quantified panels are
 paired with their own colour bar and whether the read scales are right. One sheet, one pass, both configurations.

@@ -5,7 +5,7 @@ are attached as **GitHub Release assets** of release v1.1.0.
 
 | file | description |
 |------|-------------|
-| `afm_detect_best.pt` | **Released detector (run v15)**: YOLO11m, the submitted detector fine-tuned on human-verified corpus figures (training set v2); applied at confidence 0.25. Test split mAP@50 0.96; see `../README.md`. |
+| `afm_detect_best.pt` | **Released detector (run v15)**: YOLO11m, the submitted detector fine-tuned on figures of the first corpus sample (training set v2); applied at confidence 0.25. Test split mAP@50 0.96; see `../README.md`. |
 | `afm_detect_v13.pt` | Submitted detector (run v13): YOLO11m trained on the hand-labelled set; applied at confidence 0.5. Test split mAP@50 0.98 (mAP@50–95 0.91). |
 
 Base pretrained backbone: Ultralytics `yolo11m.pt` (downloaded automatically by

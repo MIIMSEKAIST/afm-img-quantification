@@ -1,9 +1,10 @@
-"""Detector training set v2: the original labelled set plus human-verified figures of the corpus sample.
+"""Detector training set v2: the original labelled set plus figures of the first corpus sample chosen with the
+first-pass rating (verdicts produced with an AI coding assistant, see README.md).
 
-From the human verification of the 1,000-figure corpus sample (verification_reviewed_20261021.xlsx):
+From the first-pass rating of the 1,000-figure corpus sample (verification_reviewed_20261021.xlsx):
   * verified positives: figures with maps in which every map was detected and no box was false (B_fp == 0 and
-    B_tp == A_n_maps) AND the number of detected colour bars equals the human count -> the detector's own boxes are
-    confirmed by count and class and are used as labels (human-verified pseudo-labels);
+    B_tp == A_n_maps) AND the number of detected colour bars equals the count of that rating -> the detector's own boxes are
+    confirmed by count and class and are used as labels (pseudo-labels);
   * hard negatives: map-free figures (A_has_map == n) in which the detector produced boxes -> images with empty
     label files; plus a few clean map-free figures.
 The validation and test splits are unchanged (the original hand-labelled splits), so the held-out detector metrics

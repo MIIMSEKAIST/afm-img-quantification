@@ -1,5 +1,5 @@
-"""Detector v15: fine-tune the submitted detector (v13, YOLO11m) on dataset v2 (original labelled set + human-verified
-corpus figures: verified positive box sets and hard negatives), then evaluate on the unchanged held-out splits.
+"""Detector v15: fine-tune the submitted detector (v13, YOLO11m) on dataset v2 (original labelled set + figures of the
+first corpus sample chosen with the first-pass rating: positive box sets and hard negatives), then evaluate on the unchanged held-out splits.
 
     python train_detector_v15.py [--epochs 60]
 

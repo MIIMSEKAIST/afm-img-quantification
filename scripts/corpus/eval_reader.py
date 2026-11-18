@@ -1,5 +1,5 @@
 """Bar-level evaluation of the colour-bar reader against reader_dev/bar_truth.csv plus the 'pipeline-confirmed' bars
-(bars used for quantification in corpus figures whose read scales a human judged correct).
+(bars used for quantification in corpus figures whose read scales the first-pass rating judged correct; README.md).
 
     python eval_reader.py --reader v1|v2 [--only S0911,S0979] [--out eval_v1.csv]
 
@@ -25,7 +25,7 @@ def norm_unit(u):
 
 
 def confirmed_bars():
-    """Bars whose reading a human judged correct: figures with B_scale_ok == y, bars used by quantified panels."""
+    """Bars whose reading the first-pass rating judged correct: figures with B_scale_ok == y, bars used by quantified panels."""
     d = pd.read_excel(YS / "verification_reviewed_20261021.xlsx", sheet_name="verify", dtype=str).fillna("")
     d["n_panels_ok"] = pd.to_numeric(d.n_panels_ok)
     rows = []

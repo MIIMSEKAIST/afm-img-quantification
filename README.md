@@ -19,7 +19,8 @@ lookup. Every stage is validated against ground truth:
 | **Engine benchmark** (26 ESM scans × 4 colormaps, JPEG q85) | lookup only, exact scale given | nMAE **1.50 ± 0.51 %** of range, SSIM 0.90, scan median within 0.39 % (CIELAB matching of the submitted version: 2.09 %; sRGB baseline: 1.78 % over all pixels) |
 | **Colour-bar reading** (300 synthetic colour bars) | OCR + scale fit | scale read in 99.3 %, both end values within 2 % in **98.3 %** (median end error 0.21 %) |
 | **Realistic figures** (468 complete figures, 15 rendering variants) | detector → OCR → pairing → lookup | default variant: 100 % of panels quantified, scale error 0.40 %, scan median within 0.28 %, nMAE **2.4 %** |
-| **Detector** (hand-labelled test split; verified corpus figures) | map / colour-bar boxes | test split mAP@50 0.96 (submitted detector 0.98); on 711 verified corpus figures not used for training, the released detector finds 197 colour bars against 146 for the submitted one and returns the exact number of map panels in 51 figures against 26; false boxes on 4.3 % of the map-free figures (manuscript Section 2.1) |
+| **Detector** (hand-labelled test split; literature figures) | map / colour-bar boxes | test split mAP@50 0.96 (initial, i.e. submitted, detector 0.98); on 200 random figures of the held-out fourth corpus sample (212 colour-mapped panels in 55 figures, counted by two of the authors) the released detector finds 161 panels with 60 false boxes (recall 0.76, precision 0.73), the initial detector 155 with 123 false boxes (0.73, 0.56) (manuscript Section 2.8) |
+| **Literature figures** (four samples of an open-access corpus, 3,819 figures; rated by two of the authors) | detector → OCR → pairing on published figures | held-out fourth sample, released pipeline: panels quantified in 87 of 819 figures (10.6 %); pairing and scale both correct in **70 of these 87 figures (80 %)** and in 194 of the 217 quantified panels (89 %); initial pipeline on the first sample: 31 of 88 figures (35 %) (manuscript Section 2.8, Table 2) |
 
 Known limitations: horizontal colour bars are rarely quantified by the released pipeline (4 of 26 in the realistic-figure benchmark); only linear colour scales with at least two legible
 numeric labels are read (logarithmic scales are flagged and skipped); a panel whose
@@ -29,9 +30,10 @@ not readable, is withheld rather than quantified with a neighbour's bar (status
 are mostly labels of a neighbouring axis taken for the bar's, lost minus signs and
 saturated white bar ends that no frame line bounds; the detector recognises colour-mapped
 panels of any technique, so AFM specificity comes from the caption / unit filter.
-The accuracy of the pipeline on real literature figures (human verification of two
-1,000-figure samples, before and after the revision) is reported in the manuscript
-(Section 2.8) and reproduced by `scripts/corpus/`.
+The accuracy of the pipeline on real literature figures was rated by two of the authors on four
+samples of the open-access corpus (manuscript Section 2.8, Table 2); the pipeline outputs, the
+rating screens and the answers are part of the Zenodo deposit. `scripts/corpus/` holds the sampling
+and run scripts and documents the earlier AI-assisted first pass that guided the development.
 
 ---
 
@@ -65,8 +67,8 @@ detection/           YOLO11m detector: train.py, evaluate.py, detect.py, data.ya
 analysis/            scan-level statistics and meta-analysis (rankings, Cliff's delta, Mann–Whitney)
 figures/             manuscript figure parts
 scripts/run_figure.py   command-line pipeline for a figure or a folder (JSON + overlay output)
-scripts/corpus/      corpus-sample evaluations: held-out sample runs, human-verification workbooks, reader / pairing
-                     evaluations, detector training set v2 and fine-tuning, held-out detector comparison (see its README)
+scripts/corpus/      corpus samples: sampling, pipeline runs, first-pass rating workbooks (AI-assisted), reader / pairing
+                     evaluations, detector training set v2 and fine-tuning, detector comparison (see its README)
 collection/          literature collection pipeline (code only; see copyright note)
 tests/               unit tests (python -m pytest tests)
 data/                ground-truth scans (via Zenodo) and data provenance
@@ -148,17 +150,18 @@ of the paper); the ΔE validity mask is always evaluated in CIELAB.
 - **Detector weights** (`afm_detect_best.pt` = released detector v15, `afm_detect_v13.pt` =
   submitted detector; YOLO11m, training configuration in `detection/README.md`) are
   attached to the GitHub Release. Not stored in git.
-- **Corpus-sample verification** (sample manifests with DOIs, pipeline results, the
-  human-verification workbooks of both samples, the colour-bar truth table and the
-  labels added to detector training set v2) is part of the Zenodo deposit; the figure
-  images are copyrighted and not redistributed (see `scripts/corpus/README.md`).
+- **Corpus samples** (sample manifests with DOIs, the pipeline output of every state on every
+  sample, the authors' rating with its item lists, answers and time log, the workbooks of the
+  earlier AI-assisted first pass, the colour-bar regression set and the labels added to detector
+  training set v2) are part of the Zenodo deposit; the figure images are copyrighted and not
+  redistributed (see `scripts/corpus/README.md`).
 
 ## ⚠️ Note on copyright (literature corpus)
 
 The `collection/` pipeline reproduces how the literature figure corpus was
 assembled, but **the collected PDFs and extracted figures are not redistributed**:
-they are copyrighted by their publishers. The corpus-sample annotations released
-with the paper contain figure identifiers, captions and human judgements only.
+they are copyrighted by their publishers. The corpus-sample files released
+with the paper contain figure identifiers, captions, pipeline outputs and ratings, and no figure images.
 
 ## Citation
 
