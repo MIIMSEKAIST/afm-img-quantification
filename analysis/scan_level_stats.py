@@ -13,6 +13,10 @@ reliability diagnostics) and writes ``results/meta_scanlevel.csv`` with:
     med_dev_pct, cv_dev_pct  relative deviation of rec vs gt (%)
     qc_topo, qc_freq         Pearson r of amplitude vs height / vs frequency
     qc_flag                  |r| > 0.5 on either -> lower-interpretability scan
+    valid_ratio              share of valid pixels of the reconstruction
+    gt_med_valid, gt_iqr_valid   median and IQR of the original data over the valid pixels of the
+                             reconstruction only (sensitivity: the statistics above compare the whole
+                             original scan with what the reconstruction returns)
 
 The first five columns are the ones consumed by ``analysis/meta_analysis.py``
 and ``figures/make_figure_parts.py`` (unchanged schema, extended).
@@ -88,6 +92,8 @@ def main():
             "qc_topo": r_topo, "qc_freq": r_freq,
             "qc_flag": bool(abs(r_topo) > QC_R_THRESHOLD or abs(r_freq) > QC_R_THRESHOLD),
             "valid_ratio": float(valid.mean()),
+            "gt_med_valid": float(np.median(gt[valid])),
+            "gt_iqr_valid": float(np.percentile(gt[valid], 75) - np.percentile(gt[valid], 25)),
         })
 
     df = pd.DataFrame(rows)

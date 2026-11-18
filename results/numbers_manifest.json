@@ -162,7 +162,18 @@
         }
       }
     },
-    "ranking_preserved_all_corpora": true
+    "ranking_preserved_all_corpora": true,
+    "same_pixels": {
+      "median_dev_abs_mean": 0.30771,
+      "median_dev_abs_std": 0.27955,
+      "median_dev_abs_max": 1.35385,
+      "valid_ratio_mean": 0.9950462,
+      "valid_ratio_min": 0.9306641,
+      "gt_median_change_max_pct": 0.20675,
+      "gt_iqr_change_max_pct": 6.7748,
+      "heterogeneity_dev_signed_mean": -6.9711,
+      "effect_sizes_and_p_values_unchanged": true
+    }
   },
   "diffusivity": {
     "median_dev_abs_mean": 0.6157,

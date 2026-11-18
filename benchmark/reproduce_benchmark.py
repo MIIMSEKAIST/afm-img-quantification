@@ -12,6 +12,12 @@ Usage
     python benchmark/reproduce_benchmark.py \
         --ibw-dir data/esm_ibw --out results/benchmark104.csv
 
+``--recon-dir`` keeps the reconstruction of every case (.npz: gt, recon, valid);
+``--image-dir`` keeps the rendered images that are given to the engine
+(``<scan>__<colormap>__map.jpg``, ``<scan>__<colormap>__strip.jpg``) and a table of
+the scale endpoints (``scales.csv``). ``--from-images DIR`` quantifies the images of
+such a directory instead of rendering them again.
+
 Source: refactored from scripts/gold_validation.py (logic preserved; engine,
 render and metrics now imported from the `afmquant` package).
 """
@@ -27,7 +33,8 @@ import igor2.binarywave as bw
 
 # allow running from the repo root without installing the package
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from afmquant import quantify_map, render_to_published_style, evaluate  # noqa: E402
+from afmquant import quantify_map, evaluate  # noqa: E402
+from afmquant.render import render_encoded, decode_image  # noqa: E402
 
 COLORMAPS = ["viridis", "jet", "hot", "copper"]
 JPEG_QUALITY = 85
@@ -91,11 +98,21 @@ def main():
     ap.add_argument("--out", type=Path, default=Path("results/benchmark104.csv"))
     ap.add_argument("--recon-dir", type=Path, default=None,
                     help="optional dir to dump per-case .npz reconstructions")
+    ap.add_argument("--image-dir", type=Path, default=None,
+                    help="optional dir to keep the rendered images given to the engine")
+    ap.add_argument("--from-images", type=Path, default=None,
+                    help="quantify the rendered images of this dir (written with --image-dir) "
+                         "instead of rendering the scans again")
     ap.add_argument("--jpeg-quality", type=int, default=JPEG_QUALITY)
     args = ap.parse_args()
 
     if args.recon_dir:
         args.recon_dir.mkdir(parents=True, exist_ok=True)
+    if args.image_dir:
+        args.image_dir.mkdir(parents=True, exist_ok=True)
+    scales = []
+    stored = (pd.read_csv(args.from_images / "scales.csv", dtype={"vmin": str, "vmax": str})
+              .set_index("case_id") if args.from_images else None)
     args.out.parent.mkdir(parents=True, exist_ok=True)
 
     ibw_files = list_benchmark_ibw(args.ibw_dir)
@@ -112,8 +129,23 @@ def main():
         for cmap_name in COLORMAPS:
             case_id = f"{ibw_path.stem}__{cmap_name}"
             try:
-                map_rgb, strip_rgb, vmin, vmax = render_to_published_style(
-                    gt, cmap_name, args.jpeg_quality)
+                if stored is not None:
+                    row = stored.loc[case_id]
+                    map_bytes = (args.from_images / row.map_file).read_bytes()
+                    strip_bytes = (args.from_images / row.strip_file).read_bytes()
+                    vmin, vmax = float(row.vmin), float(row.vmax)
+                else:
+                    map_bytes, strip_bytes, vmin, vmax = render_encoded(
+                        gt, cmap_name, args.jpeg_quality)
+                map_rgb = decode_image(map_bytes)
+                strip_rgb = decode_image(strip_bytes).reshape(-1, 3)
+                if args.image_dir:
+                    (args.image_dir / f"{case_id}__map.jpg").write_bytes(map_bytes)
+                    (args.image_dir / f"{case_id}__strip.jpg").write_bytes(strip_bytes)
+                    scales.append({"case_id": case_id, "scan": ibw_path.stem, "colormap": cmap_name,
+                                   "map_file": f"{case_id}__map.jpg",
+                                   "strip_file": f"{case_id}__strip.jpg",
+                                   "vmin": repr(vmin), "vmax": repr(vmax)})
                 value_map, valid_mask, qc = quantify_map(map_rgb, strip_rgb, vmin, vmax)
                 metrics = evaluate(gt, value_map, valid_mask)
                 metrics.update(qc)
@@ -133,6 +165,9 @@ def main():
                       f"valid={metrics['valid_pixel_ratio']*100:.0f}%")
             except Exception as e:  # noqa: BLE001
                 print(f"  FAIL {case_id}: {e}")
+
+    if args.image_dir:
+        pd.DataFrame(scales).to_csv(args.image_dir / "scales.csv", index=False)
 
     df = pd.DataFrame(results)
     id_cols = ["case_id", "scan", "material", "colormap"]

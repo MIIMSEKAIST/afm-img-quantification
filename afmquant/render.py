@@ -49,8 +49,8 @@ def colormap_strip(cmap_name, n=256):
     return (cmap(np.linspace(1, 0, n))[:, :3] * 255).astype(np.uint8)
 
 
-def encode_decode(rgb, fmt="jpeg", jpeg_quality=85, subsampling=None):
-    """Round-trip an RGB array through an image codec.
+def encode_image(rgb, fmt="jpeg", jpeg_quality=85, subsampling=None):
+    """Encode an RGB array as an image file and return its bytes.
 
     fmt : "jpeg" | "png"
     subsampling : None (Pillow default, 4:2:0) | 0 (4:4:4) | 1 (4:2:2) | 2 (4:2:0)
@@ -66,8 +66,38 @@ def encode_decode(rgb, fmt="jpeg", jpeg_quality=85, subsampling=None):
         img.save(buf, format="JPEG", **kw)
     else:
         raise ValueError(f"fmt must be 'jpeg' or 'png', got {fmt!r}")
-    buf.seek(0)
-    return np.array(Image.open(buf).convert("RGB"))
+    return buf.getvalue()
+
+
+def decode_image(data):
+    """RGB array of an encoded image (bytes, or the path of an image file)."""
+    src = io.BytesIO(data) if isinstance(data, (bytes, bytearray)) else data
+    return np.array(Image.open(src).convert("RGB"))
+
+
+def encode_decode(rgb, fmt="jpeg", jpeg_quality=85, subsampling=None):
+    """Round-trip an RGB array through an image codec (see ``encode_image``)."""
+    return decode_image(encode_image(rgb, fmt, jpeg_quality, subsampling))
+
+
+def render_encoded(gt_matrix, cmap_name, jpeg_quality=85, fmt="jpeg",
+                   subsampling=None, strip_fmt=None):
+    """The rendered map and colour-bar strip as encoded image files.
+
+    Same parameters as ``render_to_published_style``. Returns the bytes of the map image
+    (H x W pixels), the bytes of the strip image (1 x 256 pixels, top = vmax) and the scale
+    endpoints ``vmin``, ``vmax``. Written to disk, these are the images that the engine
+    benchmark hands to the quantification engine.
+    """
+    vmin, vmax = float(np.nanmin(gt_matrix)), float(np.nanmax(gt_matrix))
+    norm = normalize_to_unit(gt_matrix, vmin, vmax)
+
+    cmap = get_cmap(cmap_name)
+    map_rgb = (cmap(norm)[:, :, :3] * 255).astype(np.uint8)
+    strip_rgb = colormap_strip(cmap_name, 256)
+    return (encode_image(map_rgb, fmt, jpeg_quality, subsampling),
+            encode_image(strip_rgb.reshape(-1, 1, 3), strip_fmt or fmt, jpeg_quality, subsampling),
+            vmin, vmax)
 
 
 def render_to_published_style(gt_matrix, cmap_name, jpeg_quality=85, fmt="jpeg",
@@ -98,15 +128,6 @@ def render_to_published_style(gt_matrix, cmap_name, jpeg_quality=85, fmt="jpeg",
     vmin, vmax : float
         Scale endpoints (full data range of the matrix).
     """
-    vmin, vmax = float(np.nanmin(gt_matrix)), float(np.nanmax(gt_matrix))
-    norm = normalize_to_unit(gt_matrix, vmin, vmax)
-
-    cmap = get_cmap(cmap_name)
-    map_rgb = (cmap(norm)[:, :, :3] * 255).astype(np.uint8)
-    map_rgb_compressed = encode_decode(map_rgb, fmt, jpeg_quality, subsampling)
-
-    strip_rgb = colormap_strip(cmap_name, 256)
-    strip_compressed = encode_decode(strip_rgb.reshape(-1, 1, 3), strip_fmt or fmt,
-                                     jpeg_quality, subsampling).reshape(-1, 3)
-
-    return map_rgb_compressed, strip_compressed, vmin, vmax
+    map_bytes, strip_bytes, vmin, vmax = render_encoded(gt_matrix, cmap_name, jpeg_quality, fmt,
+                                                        subsampling, strip_fmt)
+    return decode_image(map_bytes), decode_image(strip_bytes).reshape(-1, 3), vmin, vmax

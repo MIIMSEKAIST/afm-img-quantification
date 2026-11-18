@@ -80,7 +80,9 @@ reproduce_all.py     regenerates the benchmark numbers of the manuscript -> resu
 
 ```bash
 python -m venv .venv && source .venv/bin/activate      # or conda
-pip install -r requirements.txt                          # exact versions used: requirements.lock
+pip install -r requirements.txt                          # minimum versions
+# the exact environment of the article (Python 3.10, PyTorch 2.5.1 with CUDA 12.1):
+pip install -r requirements.lock --extra-index-url https://download.pytorch.org/whl/cu121
 ```
 
 Python 3.10 or newer. The detector (`ultralytics`, PyTorch) and the OCR engine
@@ -95,6 +97,11 @@ the engine benchmark runs without them.
 ```bash
 python benchmark/reproduce_benchmark.py --ibw-dir data/esm_ibw --out results/benchmark104.csv
 ```
+
+`--image-dir DIR` keeps the rendered images that the engine is given (a map and a colour-bar strip per
+case, with the scale endpoints in `scales.csv`). The Zenodo deposit contains them
+(`engine_benchmark/rendered_images/`); `--from-images DIR` quantifies the images of such a folder
+instead of rendering the scans again and gives the same result table.
 
 **Reproduce the benchmarks of the manuscript** (engine benchmarks and colour-bar reading test ≈ 5 min;
 with the detector weights also the realistic-figure benchmark, ≈ 40 min on a GPU; with the labelled
@@ -125,15 +132,16 @@ paper next to the file each was computed from.
 **Run the pipeline on your own figure**:
 
 ```bash
-python scripts/run_figure.py figure.png --weights detection/weights/afm_detect_best.pt --out out/
+python scripts/run_figure.py --images figure.png --weights detection/weights/afm_detect_best.pt --out out/
 ```
 
-writes `out/figure.json` (detected boxes, read scale and unit, pairing, QC
-record and the value map of each quantified panel) and an overlay PNG. The
+(`--images` takes one image file or a folder of images) writes, per figure, a JSON summary
+(detected boxes, read scale and unit, pairing, QC record), an overlay PNG and one `.npz` with the
+value map of each quantified panel. The
 defaults are the released configuration (fine-tuned detector at confidence 0.25,
 label-column colour-bar reader, lexicon-constrained units, evidence-based pairing);
-`--weights detection/weights/afm_detect_v13.pt --conf 0.5 --reader v1 --unit-mode raw --pairing-mode nearest`
-reproduces the submitted version.
+`--weights detection/weights/afm_detect_v13.pt --conf 0.5 --reader v1 --unit-mode raw --pairing-mode nearest --crop box --color-space cielab`
+reproduces the submitted version (the initial pipeline of the article).
 From Python:
 
 ```python

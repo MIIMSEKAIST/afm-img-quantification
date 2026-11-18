@@ -231,6 +231,19 @@ def test_classify_panel(caption, unit, label):
     assert classify_panel(caption, unit)["label"] == label
 
 
+def test_rendered_files_are_what_the_engine_gets():
+    """The encoded images of render_encoded decode to the arrays of render_to_published_style."""
+    from afmquant.render import render_encoded, render_to_published_style, decode_image
+    gt = np.random.default_rng(3).normal(size=(40, 48)) * 2.0e-11
+    for kw in ({}, {"fmt": "png"}, {"subsampling": 0}, {"jpeg_quality": 60}):
+        mb, sb, lo, hi = render_encoded(gt, "jet", **kw)
+        m, s, lo2, hi2 = render_to_published_style(gt, "jet", **kw)
+        assert (lo, hi) == (lo2, hi2)
+        assert np.array_equal(decode_image(mb), m) and np.array_equal(decode_image(sb).reshape(-1, 3), s)
+        assert mb[:3] == (b"\x89PN" if kw.get("fmt") == "png" else b"\xff\xd8\xff")
+        assert decode_image(sb).shape == (256, 1, 3)
+
+
 def test_manifest_paths_resolve_in_the_layout_of_the_data_deposit(tmp_path):
     """A manifest written where the benchmark was generated is usable next to the deposited figures."""
     import sys

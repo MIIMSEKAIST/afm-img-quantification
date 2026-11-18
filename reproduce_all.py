@@ -34,7 +34,7 @@ MATS = ["LMNO", "LICGC", "NCM811"]
 
 STEPS = [  # (key, command)
     ("benchmark", ["benchmark/reproduce_benchmark.py", "--out", "results/benchmark104.csv",
-                   "--recon-dir", "runs/recon_maps"]),
+                   "--recon-dir", "runs/recon_maps", "--image-dir", "runs/rendered_images"]),
     ("scanlevel", ["analysis/scan_level_stats.py", "--recon-dir", "runs/recon_maps",
                    "--out", "results/meta_scanlevel.csv"]),
     ("diffusivity", ["benchmark/diffusivity_consistency.py", "--recon-dir", "runs/recon_maps",
@@ -114,9 +114,12 @@ def build_manifest():
         from analysis.meta_analysis import corpus_stats  # noqa: E402
         gt0 = s[s.colormap == COLORMAPS[0]]
         corp = {"ground_truth": corpus_stats({m: gt0[gt0.material == m].gt_med.values * 1e12 for m in MATS})}
+        same = {}                                 # original data restricted to the valid pixels of each reconstruction
         for c in COLORMAPS:
             sc = s[s.colormap == c]
             corp[c] = corpus_stats({m: sc[sc.material == m].rec_med.values * 1e12 for m in MATS})
+            if "gt_med_valid" in s:
+                same[c] = corpus_stats({m: sc[sc.material == m].gt_med_valid.values * 1e12 for m in MATS})
         M["scan_level"] = {
             "median_dev_abs_mean": r(dev.mean(), 2), "median_dev_abs_std": r(dev.std(), 2),
             "median_dev_abs_max": r(dev.max(), 2),
@@ -135,6 +138,20 @@ def build_manifest():
                         for k, v in corp.items()},
             "ranking_preserved_all_corpora": len({v["ranking"] for v in corp.values()}) == 1,
         }
+        if same:
+            dev_same = (s.rec_med / s.gt_med_valid - 1).abs() * 100
+            gt = corp["ground_truth"]
+            M["scan_level"]["same_pixels"] = {
+                "median_dev_abs_mean": r(dev_same.mean(), 2), "median_dev_abs_std": r(dev_same.std(), 2),
+                "median_dev_abs_max": r(dev_same.max(), 2),
+                "valid_ratio_mean": r(s.valid_ratio.mean(), 4), "valid_ratio_min": r(s.valid_ratio.min(), 4),
+                "gt_median_change_max_pct": r(((s.gt_med_valid / s.gt_med - 1).abs() * 100).max(), 2),
+                "gt_iqr_change_max_pct": r(((s.gt_iqr_valid / s.gt_iqr - 1).abs() * 100).max(), 1),
+                "heterogeneity_dev_signed_mean": r((((s.rec_iqr / s.rec_med) / (s.gt_iqr_valid / s.gt_med_valid) - 1) * 100).mean(), 1),
+                "effect_sizes_and_p_values_unchanged": bool(all(
+                    v["ranking"] == gt["ranking"] and v["cliffs_delta"] == gt["cliffs_delta"]
+                    and v["mannwhitney_p"] == gt["mannwhitney_p"] for v in same.values())),
+            }
 
     if (R / "diffusivity_recon_vs_raw.csv").exists():
         d = pd.read_csv(R / "diffusivity_recon_vs_raw.csv")
