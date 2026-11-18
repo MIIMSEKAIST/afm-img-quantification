@@ -29,6 +29,20 @@ except ImportError:                    # older matplotlib
         return _cm.get_cmap(name)
 
 
+def normalize_to_unit(matrix, vmin, vmax):
+    """``(matrix - vmin) / (vmax - vmin)``, exactly; a constant matrix maps to 0.
+
+    No constant is added to the denominator. A fixed guard such as 1e-12 is not small
+    for data stored in SI base units (it is 1 pm for a scan in metres) and would make
+    the rendering depend on the unit of the data.
+    """
+    matrix = np.asarray(matrix, dtype=float)
+    span = float(vmax) - float(vmin)
+    if not span > 0:
+        return np.zeros_like(matrix)
+    return (matrix - float(vmin)) / span
+
+
 def colormap_strip(cmap_name, n=256):
     """Ideal (uncompressed) color-bar strip, ordered vmax -> vmin."""
     cmap = get_cmap(cmap_name)
@@ -85,7 +99,7 @@ def render_to_published_style(gt_matrix, cmap_name, jpeg_quality=85, fmt="jpeg",
         Scale endpoints (full data range of the matrix).
     """
     vmin, vmax = float(np.nanmin(gt_matrix)), float(np.nanmax(gt_matrix))
-    norm = (gt_matrix - vmin) / (vmax - vmin + 1e-12)
+    norm = normalize_to_unit(gt_matrix, vmin, vmax)
 
     cmap = get_cmap(cmap_name)
     map_rgb = (cmap(norm)[:, :, :3] * 255).astype(np.uint8)

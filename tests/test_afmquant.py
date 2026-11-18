@@ -158,6 +158,44 @@ def test_evaluate_identity():
     assert m["nMAE_IQR_pct"] == 0 and m["levels_in_IQR"] > 0
 
 
+RELATIVE_KEYS = ["nMAE_pct", "nMAE_IQR_pct", "nMAE_SD_pct", "nMAE_allpix_pct", "mean_error_signed_pct",
+                 "std_error_signed_pct", "normalized_EMD_pct", "SSIM", "IQR_over_range", "levels_in_IQR"]
+
+
+def test_metrics_do_not_depend_on_the_unit():
+    """The same scan in picometres and in metres gives the same relative errors (no constant in a denominator)."""
+    rng = np.random.default_rng(2)
+    gt = rng.normal(300.0, 30.0, (64, 64))                             # pm; IQR about 40 pm
+    rec = gt + rng.normal(0.0, 3.0, gt.shape)
+    valid = np.ones_like(gt, bool)
+    pm = metrics.evaluate(gt, rec, valid)
+    m = metrics.evaluate(gt * 1e-12, rec * 1e-12, valid)
+    for k in RELATIVE_KEYS:
+        assert m[k] == pytest.approx(pm[k], rel=1e-9), k
+    assert m["gt_IQR"] == pytest.approx(pm["gt_IQR"] * 1e-12, rel=1e-9)
+
+
+def test_metrics_of_a_constant_map_are_nan():
+    gt = np.full((16, 16), 5.0)
+    m = metrics.evaluate(gt, gt, np.ones_like(gt, bool))
+    assert all(np.isnan(m[k]) for k in ("nMAE_pct", "nMAE_IQR_pct", "nMAE_SD_pct", "SSIM"))
+
+
+@pytest.mark.parametrize("fmt", ["png", "jpeg"])
+def test_rendering_does_not_depend_on_the_unit(fmt):
+    """A scan in metres is rendered like the same scan in picometres: the top of the range gets the top colour."""
+    from afmquant.render import render_to_published_style, normalize_to_unit
+    rng = np.random.default_rng(3)
+    gt = rng.normal(300.0, 30.0, (64, 64))
+    a, strip_a, lo, hi = render_to_published_style(gt, "viridis", fmt=fmt)
+    b, strip_b, lo_m, hi_m = render_to_published_style(gt * 1e-12, "viridis", fmt=fmt)
+    assert (a != b).any(axis=2).mean() < 0.01                          # rounding at level boundaries only
+    assert np.array_equal(strip_a, strip_b) and lo_m == pytest.approx(lo * 1e-12) and hi_m == pytest.approx(hi * 1e-12)
+    n = normalize_to_unit(gt * 1e-12, lo_m, hi_m)
+    assert n.min() == 0.0 and n.max() == 1.0
+    assert not normalize_to_unit(np.full((4, 4), 2.0), 2.0, 2.0).any()  # constant matrix: all zeros, no division by zero
+
+
 # ---------------------------------------------------------------- pairing
 def test_pair_maps_to_bars_by_gamut():
     img = np.full((200, 320, 3), 255, np.uint8)
@@ -191,3 +229,19 @@ def test_box_distance():
 ])
 def test_classify_panel(caption, unit, label):
     assert classify_panel(caption, unit)["label"] == label
+
+
+def test_manifest_paths_resolve_in_the_layout_of_the_data_deposit(tmp_path):
+    """A manifest written where the benchmark was generated is usable next to the deposited figures."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "benchmark"))
+    from manifest_paths import resolve_path
+    (tmp_path / "figures" / "default").mkdir(parents=True)
+    (tmp_path / "figures" / "gt").mkdir()
+    img = tmp_path / "figures" / "default" / "a__hot.jpg"; img.write_bytes(b"x")
+    gt = tmp_path / "figures" / "gt" / "a__esm.npy"; gt.write_bytes(b"x")
+    assert resolve_path(r"..\revision\benchmark_t2\default\a__hot.jpg", tmp_path) == img
+    assert resolve_path("../revision/benchmark_t2/gt/a__esm.npy", tmp_path) == gt
+    assert resolve_path(str(img), tmp_path / "elsewhere") == img            # an existing path is used as written
+

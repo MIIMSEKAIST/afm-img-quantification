@@ -16,13 +16,13 @@ authors:
     affiliation: "KAIST"
 license: MIT
 repository-code: "https://github.com/MIIMSEKAIST/afm-img-quantification"
-version: "1.1.0"
+version: "1.1.1"
 date-released: "2026-11-18"
-doi: "10.5281/zenodo.24329912"
+doi: "10.5281/zenodo.24329911"
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.24329912"
-    description: "This release (v1.1.0) archived on Zenodo."
+    value: "10.5281/zenodo.24329911"
+    description: "All versions of this software on Zenodo (resolves to the latest release; each release has its own DOI there)."
   - type: doi
     value: "10.5281/zenodo.24329899"
     description: "Dataset version 2.0 on Zenodo (ground-truth ESM scans, benchmarks, corpus samples and their rating), required to reproduce the results of the article."

@@ -25,6 +25,16 @@ from scipy.stats import wasserstein_distance
 N_LEVELS = 256  # color-bar / LUT quantization levels
 
 
+def _ratio(num, den):
+    """``num / den``; NaN when the denominator is zero.
+
+    The denominators (range, IQR, SD, mean of the ground truth) carry the unit of
+    the data, so no constant is added to them: a guard such as 1e-12 is 1 pm for a
+    scan stored in metres. A constant map has nothing to normalise by and gives NaN.
+    """
+    return float(num / den) if den > 0 else float("nan")
+
+
 def evaluate(gt, recon, valid_mask):
     """Compare a reconstructed map against ground truth.
 
@@ -48,22 +58,25 @@ def evaluate(gt, recon, valid_mask):
     g = gt[valid_mask]
     r = recon[valid_mask]
 
-    rng = gt.max() - gt.min() + 1e-12
+    rng = float(gt.max() - gt.min())
     q25, q75 = np.percentile(gt, [25, 75])
-    iqr = (q75 - q25) + 1e-12
-    sd = gt.std() + 1e-12
+    iqr = float(q75 - q25)
+    sd = float(gt.std())
 
     mae = float(np.abs(g - r).mean())
     mae_all = float(np.abs(gt - recon).mean())
-    rel_mae = mae / rng                                   # range-normalized MAE
-    mean_err_signed = float((r.mean() - g.mean()) / (abs(g.mean()) + 1e-12))
-    std_err_signed = float((r.std() - g.std()) / (g.std() + 1e-12))
-    emd = float(wasserstein_distance(g.flatten(), r.flatten()) / rng)
+    rel_mae = _ratio(mae, rng)                            # range-normalized MAE
+    mean_err_signed = _ratio(r.mean() - g.mean(), abs(g.mean()))
+    std_err_signed = _ratio(r.std() - g.std(), g.std())
+    emd = _ratio(wasserstein_distance(g.flatten(), r.flatten()), rng)
 
     # SSIM on range-normalized maps (full maps, as in the manuscript)
-    gn = (gt - gt.min()) / rng
-    rn = (recon - gt.min()) / rng
-    s = float(ssim(gn, rn, data_range=1.0))
+    if rng > 0:
+        gn = (gt - gt.min()) / rng
+        rn = (recon - gt.min()) / rng
+        s = float(ssim(gn, rn, data_range=1.0))
+    else:
+        s = float("nan")
 
     return {
         # --- original manuscript metrics (unchanged definitions) ---
@@ -73,14 +86,14 @@ def evaluate(gt, recon, valid_mask):
         "normalized_EMD_pct": emd * 100,
         "SSIM": s,
         # --- added in revision ---
-        "nMAE_IQR_pct": mae / iqr * 100,
-        "nMAE_SD_pct": mae / sd * 100,
+        "nMAE_IQR_pct": _ratio(mae, iqr) * 100,
+        "nMAE_SD_pct": _ratio(mae, sd) * 100,
         "mean_error_signed_pct": mean_err_signed * 100,
         "std_error_signed_pct": std_err_signed * 100,
-        "nMAE_allpix_pct": mae_all / rng * 100,
-        "IQR_over_range": float(iqr / rng),
-        "levels_in_IQR": float(iqr / (rng / (N_LEVELS - 1))),
-        "gt_range": float(rng),
-        "gt_IQR": float(iqr),
-        "gt_SD": float(sd),
+        "nMAE_allpix_pct": _ratio(mae_all, rng) * 100,
+        "IQR_over_range": _ratio(iqr, rng),
+        "levels_in_IQR": _ratio(iqr * (N_LEVELS - 1), rng),
+        "gt_range": rng,
+        "gt_IQR": iqr,
+        "gt_SD": sd,
     }

@@ -35,6 +35,7 @@ from skimage.metrics import structural_similarity as ssim
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant.pipeline import FigurePipeline  # noqa: E402
 from afmquant.ocr import ColorbarOCR  # noqa: E402
+from manifest_paths import resolve_path  # noqa: E402
 
 
 def iou(a, b):
@@ -98,13 +99,15 @@ def score_panel(gt, value_map, valid, vmin_true, vmax_true, align=True):
         vmask = np.roll(np.roll(vmask, shift[0], axis=0), shift[1], axis=1)
         k = 4
         vmask[:k, :] = vmask[-k:, :] = vmask[:, :k] = vmask[:, -k:] = False
-    rng = gt.max() - gt.min() + 1e-12
-    iqr = np.subtract(*np.percentile(gt, [75, 25])) + 1e-12
+    rng = float(gt.max() - gt.min())                     # exact denominators: no constant added (unit of the data)
+    if not rng > 0:
+        return None
+    iqr = float(np.subtract(*np.percentile(gt, [75, 25])))
     g, r = gt[vmask], vm[vmask]
     mae = float(np.abs(g - r).mean())
     gn = (gt - gt.min()) / rng
     rn = np.clip((vm - gt.min()) / rng, -0.5, 1.5)
-    return {"nMAE_pct": mae / rng * 100, "nMAE_IQR_pct": mae / iqr * 100,
+    return {"nMAE_pct": mae / rng * 100, "nMAE_IQR_pct": mae / iqr * 100 if iqr > 0 else float("nan"),
             "median_dev_pct": (np.median(r) / np.median(g) - 1) * 100,
             "median_dev_range_pct": (np.median(r) - np.median(g)) / rng * 100,   # for zero-centred data
             "mean_dev_pct": (r.mean() / g.mean() - 1) * 100,
@@ -155,7 +158,7 @@ def main():
             for pn in m["panels"]:
                 rows.append({**base, "panel": pn["name"], "color_space": "-", "status": "extraction_failed"})
             continue
-        image = np.array(Image.open(m["image"]).convert("RGB"))
+        image = np.array(Image.open(resolve_path(m["image"], args.manifest.parent)).convert("RGB"))
         H, W = image.shape[:2]
         res0 = pipe0.process(image, figure_id=m["case_id"])
         if args.overlay_dir:
@@ -179,7 +182,7 @@ def main():
                         q["status"] = "ok" if qc["valid_pixel_ratio"] >= 0.5 else "low_valid_ratio"
                     res["panels"].append(q)
             for pn in m["panels"]:
-                gt = np.load(pn["gt_file"]).astype(float)
+                gt = np.load(resolve_path(pn["gt_file"], args.manifest.parent)).astype(float)
                 bx = [pn["bbox"][0] * W, pn["bbox"][1] * H, pn["bbox"][2] * W, pn["bbox"][3] * H]
                 best, best_iou = None, 0.0
                 for p in res["panels"]:

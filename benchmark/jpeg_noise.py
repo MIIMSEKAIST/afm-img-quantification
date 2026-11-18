@@ -21,7 +21,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from afmquant.engine import _RGB2YCC  # noqa: E402
-from afmquant.render import encode_decode, get_cmap  # noqa: E402
+from afmquant.render import encode_decode, get_cmap, normalize_to_unit  # noqa: E402
 from reproduce_benchmark import list_benchmark_ibw, load_ground_truth, material_of  # noqa: E402
 
 COLORMAPS = ["copper", "hot", "jet", "viridis"]
@@ -39,7 +39,7 @@ def main():
     for ibw_path in list_benchmark_ibw(args.ibw_dir):
         gt = load_ground_truth(ibw_path)
         vmin, vmax = float(np.nanmin(gt)), float(np.nanmax(gt))
-        norm = (gt - vmin) / (vmax - vmin + 1e-12)
+        norm = normalize_to_unit(gt, vmin, vmax)
         for cmap_name in COLORMAPS:
             clean = (get_cmap(cmap_name)(norm)[:, :, :3] * 255).astype(np.uint8)
             jpeg = encode_decode(clean, "jpeg", args.quality, args.subsampling)

@@ -1,4 +1,7 @@
-"""Reproduce every number reported in the manuscript from the deposited data.
+"""Reproduce the benchmark numbers of the manuscript from the deposited data: the engine benchmark and the
+analyses derived from it, the colour-bar reading test, the realistic-figure benchmark and, with the labelled
+images, the detector metrics. The published-figure test and the corpus samples are not re-run here; their
+numbers are recomputed from deposited outputs (README, "What can be reproduced, and from what").
 
 Runs the benchmark scripts in order and collects the headline quantities into
 ``results/numbers_manifest.json`` (machine-readable) and
@@ -56,13 +59,17 @@ STEPS = [  # (key, command)
 ]
 NEEDS_IBW = {"benchmark", "scanlevel", "diffusivity", "robustness", "subsampling", "subsampling_cielab", "subsampling_rgb",
              "baseline", "jpeg_noise", "tier2_render"}
-NEEDS_WEIGHTS = {"detection", "tier2_eval"}      # detector weights (released with v1.1.0)
+NEEDS_WEIGHTS = {"detection", "tier2_eval"}      # detector weights (GitHub release assets; also in the data deposit)
 NEEDS_DATA = {"detection", "detection_submitted"}                        # labelled detection dataset (Zenodo deposit)
 NEEDS_PDFF = {"tier2_render"}                     # pdffigures2 jar (optional; PyMuPDF fallback)
 
 
+EXTRA_DECIMALS = 3      # the manifest keeps three more decimals than a quantity is quoted with, so that a text that
+                        # quotes it rounds once, from (nearly) full precision, and not a second time from a rounded value
+
+
 def r(x, n=3):
-    return None if x is None or (isinstance(x, float) and np.isnan(x)) else round(float(x), n)
+    return None if x is None or (isinstance(x, float) and np.isnan(x)) else round(float(x), n + EXTRA_DECIMALS)
 
 
 def build_manifest():

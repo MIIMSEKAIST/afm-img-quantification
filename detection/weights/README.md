@@ -1,7 +1,7 @@
 # Detection weights
 
 Trained YOLO weights are **not stored in git** (they are large binaries). They
-are attached as **GitHub Release assets** of release v1.1.0.
+are attached as **GitHub Release assets** of release v1.1.1 (the same files as in v1.1.0).
 
 | file | description |
 |------|-------------|
@@ -23,7 +23,7 @@ detection/weights/afm_detect_best.pt
 detection/weights/afm_detect_v13.pt
 ```
 
-- **Release:** https://github.com/MIIMSEKAIST/afm-img-quantification/releases/tag/v1.1.0
-- **Direct download:** https://github.com/MIIMSEKAIST/afm-img-quantification/releases/download/v1.1.0/afm_detect_best.pt
-  and https://github.com/MIIMSEKAIST/afm-img-quantification/releases/download/v1.1.0/afm_detect_v13.pt
+- **Release:** https://github.com/MIIMSEKAIST/afm-img-quantification/releases/tag/v1.1.1
+- **Direct download:** https://github.com/MIIMSEKAIST/afm-img-quantification/releases/download/v1.1.1/afm_detect_best.pt
+  and https://github.com/MIIMSEKAIST/afm-img-quantification/releases/download/v1.1.1/afm_detect_v13.pt
 - The v1.0.0 release asset `best.pt` is the same file as `afm_detect_v13.pt`.

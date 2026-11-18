@@ -10,8 +10,9 @@ new computation that affects the reported metrics. Statistics live in
 | `make_figure_parts.py` | individual figure "parts" (one PNG per panel) under `figures/parts/{fig3,fig4,fig5,figS4}/` | Fig. 3, 4, 5 and Fig. S4 |
 | `make_supplementary.py` | `Table S1` (xlsx) + `Fig. S1` (rendering example) + `Fig. S2` (nMAE by material × colormap) under `figures/parts/supp/` | SI |
 
-Parts are saved with minimal margins for assembly (panel labels a/b/c and layout
-are added in a vector editor).
+Parts are saved with minimal margins for assembly. The scripts that assemble them into the figures of the
+article (panel labels, layout) and that draw Figs. 1, 2, 4 and 7 are archived with the data (Zenodo deposit,
+`figure_scripts/`); their paths refer to the workspace in which the article was prepared.
 
 ## Run
 

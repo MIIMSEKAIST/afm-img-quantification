@@ -2,8 +2,7 @@
 
 These scripts draw the samples of the literature corpus and run the pipeline on them (manuscript Section 2.8). The
 figures themselves are copyrighted and are **not redistributed**; the sample manifests (figure identifiers and DOIs)
-and the pipeline output of every state on every sample are part of the Zenodo deposit, so every number can be checked
-without the images. To re-run the pipeline on the figures, rebuild a sample from its identifiers with the
+and the pipeline output of every state on every sample are part of the Zenodo deposit, so the numbers of Section 2.8 can be checked without the images. To re-run the pipeline on the figures, rebuild a sample from its identifiers with the
 `collection/` scripts.
 
 **Where the accuracies of the article come from.** The numbers of Section 2.8 (Table 2, Supplementary Note 9 and

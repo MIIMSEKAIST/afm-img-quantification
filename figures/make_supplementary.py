@@ -109,7 +109,7 @@ def main():
     # --- Figure S1: rendering example (first scan, four colormaps) ---
     sample = ibw_files[0]
     gt = load_gt(sample)
-    norm = (gt - gt.min()) / (gt.max() - gt.min() + 1e-12)
+    norm = (gt - gt.min()) / (gt.max() - gt.min())
     fig, axes = plt.subplots(2, 4, figsize=(16, 8))
     for j, cmap_name in enumerate(COLORMAPS):
         rgb = (get_cmap(cmap_name)(norm)[:, :, :3] * 255).astype(np.uint8)

@@ -70,7 +70,7 @@ def load_scans():
     if not out: raise FileNotFoundError(f"No benchmark .ibw under {IBW_DIR.resolve()}")
     return out
 def metrics(gt, rec, valid):
-    rng = gt.max()-gt.min()+1e-12
+    rng = gt.max()-gt.min()                # exact: no constant added (the scans are in metres)
     nmae = float(np.abs(gt[valid]-rec[valid]).mean()/rng*100)
     gn, rn = (gt-gt.min())/rng, (rec-gt.min())/rng
     return nmae, float(ssim_f(gn, rn, data_range=1.0))
