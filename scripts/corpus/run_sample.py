@@ -16,7 +16,9 @@ from run_figure import draw_overlay  # noqa: E402
 
 RUNS = ROOT / "runs" / "detect" / "runs" / "afm_detect"
 # conf: the submitted detector ran at 0.5 (the pipeline default until the release commit, 0.25 since); it is pinned
-# here so that the submitted configurations stay reproducible with the released defaults.
+# here so that the configurations of the initial pipeline keep the confidence with which they were run. A
+# configuration names the options of a run; the earlier states were run with the code of their time (see
+# check_stored_outputs.py and README.md).
 CONFIGS = {"baseline": dict(pairing_mode="nearest", unit_mode="raw", reader="v1", conf=0.5, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
            "evidence": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v1", conf=0.5, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v13" / "weights" / "best.pt"),
            "final": dict(pairing_mode="evidence", unit_mode="lexicon", reader="v2", conf=0.25, end_labels="fit", crop="box", color_space="cielab", weights=RUNS / "v15" / "weights" / "best.pt"),

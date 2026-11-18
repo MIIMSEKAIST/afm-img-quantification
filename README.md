@@ -141,7 +141,12 @@ value map of each quantified panel. The
 defaults are the released configuration (fine-tuned detector at confidence 0.25,
 label-column colour-bar reader, lexicon-constrained units, evidence-based pairing);
 `--weights detection/weights/afm_detect_v13.pt --conf 0.5 --reader v1 --unit-mode raw --pairing-mode nearest --crop box --color-space cielab`
-reproduces the submitted version (the initial pipeline of the article).
+selects the rules of the submitted version (the initial pipeline of the article). These options reproduce its
+outputs approximately, not exactly: the strip localisation and the number parsing that both readers share were
+revised after the initial runs. With the stored detections of 109 figures of the second corpus sample, the released
+code and these options gave identical readings, pairing and panel status for 95, and the code of the initial runs
+(commit `823566c`) for all 109 (`scripts/corpus/check_stored_outputs.py`). The outputs of the initial pipeline on
+every sample are in the data deposit.
 From Python:
 
 ```python

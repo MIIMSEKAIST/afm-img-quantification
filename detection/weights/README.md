@@ -15,8 +15,8 @@ Base pretrained backbone: Ultralytics `yolo11m.pt` (downloaded automatically by
 
 Download both files from the GitHub Release and save them in this directory
 under the names above (`afm_detect_best.pt` is the default of every script;
-`afm_detect_v13.pt` reproduces the submitted version together with
-`--conf 0.5 --reader v1 --unit-mode raw --pairing-mode nearest --crop box --color-space cielab`):
+`afm_detect_v13.pt` is the detector of the submitted version, whose rules the released code applies with
+`--conf 0.5 --reader v1 --unit-mode raw --pairing-mode nearest --crop box --color-space cielab`; see `../../README.md`):
 
 ```
 detection/weights/afm_detect_best.pt

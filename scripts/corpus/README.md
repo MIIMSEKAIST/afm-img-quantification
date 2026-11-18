@@ -29,9 +29,16 @@ trimmed to the panel, luma-weighted lookup distance), which are the defaults of 
 pairing, no read scale and no quantified status. `final`, `final2`, `final3` and `final5` are intermediate revisions
 of the reader.
 
+A configuration names the options of a run. The outputs of the earlier states were produced with the code of their
+time, which the history of this repository records (the initial runs: commit `823566c`). Run with the released code,
+`baseline` reproduces the stored initial outputs approximately, because the strip localisation and the number parsing
+shared by both readers were revised later (`check_stored_outputs.py`: 95 of 109 figures of the second sample
+identical; 109 of 109 with the code of commit `823566c`).
+
 | script | purpose |
 |---|---|
 | `run_sample.py --config <name> [--sample-dir …]` | run a pipeline configuration on a sample (resumable) |
+| `check_stored_outputs.py --config <name> [--sample-dir …]` | compare the stored output of a state with what the released code returns for the same detections and the options of that configuration |
 | `sample_corpus_v3.py --n 1000 --seed 2` | third sample: excludes the papers of both earlier samples and of the detector training sets |
 | `sample_corpus_v4.py --n 1000 --per-paper 2 --seed 3` | fourth sample: the remaining papers, up to two figures per paper (held-out test of the released pipeline) |
 | `build_dataset_v2.py` | detector training set v2: original labels + figures of the first sample chosen with the first-pass rating (91 with their detections as labels, 198 map-free negatives) |
